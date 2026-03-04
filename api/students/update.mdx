@@ -1,0 +1,209 @@
+---
+title: "Update Student"
+api: "PUT /api/v1/alumnos/{id}"
+---
+
+## Update Student Information
+
+Updates an existing student's information.
+
+### Path Parameters
+
+<ParamField path="id" type="long" required>
+  The unique identifier of the student to update
+</ParamField>
+
+### Request Body
+
+The request must include a valid `AlumnoDto` object with all required fields. See the [Create Student](/api/students/create) endpoint for the complete field reference.
+
+### Personal Information
+
+<ParamField body="dni" type="string" required>
+  Student's DNI (7-9 digits, numbers only)
+</ParamField>
+
+<ParamField body="nombre" type="string" required>
+  Student's first name (2-50 characters)
+</ParamField>
+
+<ParamField body="apellido" type="string" required>
+  Student's last name (2-50 characters)
+</ParamField>
+
+<ParamField body="fechaNacimiento" type="date" required>
+  Student's date of birth (must be a past date)
+</ParamField>
+
+<ParamField body="telefono" type="string" required>
+  Student's phone number (10-15 characters)
+</ParamField>
+
+<ParamField body="email" type="string">
+  Student's email address (valid email format)
+</ParamField>
+
+### Student Information
+
+<ParamField body="fechaInscripcion" type="date" required>
+  Enrollment date (past or present)
+</ParamField>
+
+<ParamField body="cantidadClases" type="integer" required>
+  Number of classes (must be 4, 8, 12, or 16)
+</ParamField>
+
+<ParamField body="activo" type="boolean" required>
+  Whether the student is active
+</ParamField>
+
+<ParamField body="propietario" type="boolean" required>
+  Whether the student owns their own horse
+</ParamField>
+
+<ParamField body="caballoId" type="long">
+  ID of the assigned or owned horse
+</ParamField>
+
+<ParamField body="tipoPension" type="string" required>
+  Type of boarding: `SIN_CABALLO`, `RESERVA_ESCUELA`, or `CABALLO_PROPIO`
+</ParamField>
+
+<ParamField body="cuotaPension" type="string">
+  Boarding quota: `ENTERA`, `MEDIA`, or `TERCIO` (required if tipoPension is CABALLO_PROPIO)
+</ParamField>
+
+## Response
+
+Returns a success message with HTTP 200 (OK) status.
+
+<ResponseField name="mensaje" type="string">
+  Success message: `"Alumno con ID {id} actualizado correctamente"`
+</ResponseField>
+
+<RequestExample>
+```json
+{
+  "dni": "12345678",
+  "nombre": "Juan",
+  "apellido": "Pérez",
+  "fechaNacimiento": "1995-03-15",
+  "telefono": "+5491112345678",
+  "email": "juan.perez@example.com",
+  "fechaInscripcion": "2024-01-10",
+  "cantidadClases": 12,
+  "activo": true,
+  "propietario": false,
+  "caballoId": 5,
+  "tipoPension": "SIN_CABALLO",
+  "cuotaPension": null
+}
+```
+</RequestExample>
+
+<ResponseExample>
+```json
+{
+  "mensaje": "Alumno con ID 1 actualizado correctamente"
+}
+```
+</ResponseExample>
+
+## Business Logic
+
+The service performs the following validations:
+
+1. **Student Exists**: Validates that a student with the given ID exists
+2. **DNI Uniqueness**: Ensures the DNI is not already used by another student
+3. **Valid Class Quantity**: Verifies that `cantidadClases` is one of: 4, 8, 12, or 16
+
+## Error Responses
+
+<ResponseField name="400" type="object">
+  Bad Request - Validation errors
+</ResponseField>
+
+<ResponseField name="404" type="object">
+  Not Found - Student with the given ID does not exist
+</ResponseField>
+
+<ResponseField name="422" type="object">
+  Unprocessable Entity - Business logic validation failed (e.g., DNI already exists for another student)
+</ResponseField>
+
+---
+
+## Convert Trial Student to Regular Plan
+
+<api>PUT /api/v1/alumnos/{id}/convertir-a-plan</api>
+
+Converts a trial student (inactive) to a regular student with a class plan.
+
+### Path Parameters
+
+<ParamField path="id" type="long" required>
+  The unique identifier of the trial student to convert
+</ParamField>
+
+### Request Body
+
+<ParamField body="cantidadClases" type="integer" required>
+  Number of classes for the new plan
+  
+  **Validations:**
+  - Required
+  - Must be exactly 4, 8, 12, or 16
+  - Validated by regex pattern: `^(4|8|12|16)$`
+</ParamField>
+
+<RequestExample>
+```json
+{
+  "cantidadClases": 8
+}
+```
+</RequestExample>
+
+### Response
+
+Returns a success response with the conversion details.
+
+<ResponseField name="mensaje" type="string">
+  Success message: `"Alumno convertido a plan regular exitosamente"`
+</ResponseField>
+
+<ResponseField name="alumnoId" type="long">
+  ID of the converted student
+</ResponseField>
+
+<ResponseField name="cantidadClases" type="integer">
+  Number of classes in the new plan
+</ResponseField>
+
+<ResponseExample>
+```json
+{
+  "mensaje": "Alumno convertido a plan regular exitosamente",
+  "alumnoId": 10,
+  "cantidadClases": 8
+}
+```
+</ResponseExample>
+
+## Business Logic
+
+This endpoint:
+1. Validates that the student exists
+2. Converts the trial student to an active student
+3. Sets the specified class plan (4, 8, 12, or 16 classes)
+4. Updates the student's `activo` status to `true`
+
+## Error Responses
+
+<ResponseField name="400" type="object">
+  Bad Request - Invalid cantidadClases value (must be 4, 8, 12, or 16)
+</ResponseField>
+
+<ResponseField name="404" type="object">
+  Not Found - Student with the given ID does not exist
+</ResponseField>

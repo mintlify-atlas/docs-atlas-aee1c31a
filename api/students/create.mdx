@@ -1,0 +1,193 @@
+---
+title: "Create Student"
+api: "POST /api/v1/alumnos"
+---
+
+Creates a new student in the riding school system.
+
+## Request Body
+
+The request must include a valid `AlumnoDto` object with all required fields.
+
+### Personal Information (from PersonaDto)
+
+<ParamField body="dni" type="string" required>
+  Student's national identification number (DNI)
+  
+  **Validations:**
+  - Required (cannot be blank)
+  - Must be between 7 and 9 digits
+  - Must contain only numbers
+  - Must be unique in the system
+</ParamField>
+
+<ParamField body="nombre" type="string" required>
+  Student's first name
+  
+  **Validations:**
+  - Required (cannot be blank)
+  - Must be between 2 and 50 characters
+</ParamField>
+
+<ParamField body="apellido" type="string" required>
+  Student's last name
+  
+  **Validations:**
+  - Required (cannot be blank)
+  - Must be between 2 and 50 characters
+</ParamField>
+
+<ParamField body="fechaNacimiento" type="date" required>
+  Student's date of birth (ISO 8601 format: YYYY-MM-DD)
+  
+  **Validations:**
+  - Required
+  - Must be a past date
+</ParamField>
+
+<ParamField body="telefono" type="string" required>
+  Student's phone number
+  
+  **Validations:**
+  - Required (cannot be blank)
+  - Must be between 10 and 15 characters
+  - Can only contain numbers and optionally a '+' prefix
+</ParamField>
+
+<ParamField body="email" type="string">
+  Student's email address
+  
+  **Validations:**
+  - Must have a valid email format
+</ParamField>
+
+### Student-Specific Information
+
+<ParamField body="fechaInscripcion" type="date" required>
+  Date when the student enrolled (ISO 8601 format: YYYY-MM-DD)
+  
+  **Validations:**
+  - Required
+  - Cannot be in the future (must be past or present)
+</ParamField>
+
+<ParamField body="cantidadClases" type="integer" required>
+  Number of classes in the student's plan
+  
+  **Validations:**
+  - Required
+  - Must be one of: 4, 8, 12, or 16
+  
+  **Business Logic:**
+  - The service validates that the value is exactly 4, 8, 12, or 16
+  - These values correspond to monthly class plans
+  - Affects the student's monthly payment calculation
+</ParamField>
+
+<ParamField body="activo" type="boolean" required>
+  Whether the student is active
+  
+  **Validations:**
+  - Required
+  
+  **Business Logic:**
+  - `true`: Regular student with an active plan
+  - `false`: Trial student or inactive student
+  - Trial students should be set to `false` and later converted using the conversion endpoint
+</ParamField>
+
+<ParamField body="propietario" type="boolean" required>
+  Whether the student owns their own horse
+  
+  **Validations:**
+  - Required
+  - Default value: `false`
+</ParamField>
+
+<ParamField body="caballoId" type="long">
+  ID of the student's assigned or owned horse
+  
+  **Business Logic:**
+  - Optional
+  - References an existing horse in the system
+</ParamField>
+
+<ParamField body="tipoPension" type="string" required>
+  Type of horse boarding arrangement
+  
+  **Validations:**
+  - Required
+  - Default value: `SIN_CABALLO`
+  
+  **Valid values:**
+  - `SIN_CABALLO`: Assigned a school horse at no extra cost
+  - `RESERVA_ESCUELA`: Reserved school horse (pays reservation fee)
+  - `CABALLO_PROPIO`: Own horse (pays boarding fee)
+</ParamField>
+
+<ParamField body="cuotaPension" type="string">
+  Boarding fee quota (only required when tipoPension is `CABALLO_PROPIO`)
+  
+  **Valid values:**
+  - `ENTERA`: Full boarding
+  - `MEDIA`: Half boarding
+  - `TERCIO`: Third boarding
+  
+  **Business Logic:**
+  - Optional if `tipoPension` is `SIN_CABALLO` or `RESERVA_ESCUELA`
+  - Required if `tipoPension` is `CABALLO_PROPIO`
+</ParamField>
+
+## Response
+
+Returns a success message with HTTP 201 (Created) status.
+
+<ResponseField name="mensaje" type="string">
+  Success message: `"Alumno {nombreCompleto} creado correctamente"`
+</ResponseField>
+
+<RequestExample>
+```json
+{
+  "dni": "12345678",
+  "nombre": "Juan",
+  "apellido": "Pérez",
+  "fechaNacimiento": "1995-03-15",
+  "telefono": "+5491112345678",
+  "email": "juan.perez@example.com",
+  "fechaInscripcion": "2024-01-10",
+  "cantidadClases": 8,
+  "activo": true,
+  "propietario": false,
+  "caballoId": null,
+  "tipoPension": "SIN_CABALLO",
+  "cuotaPension": null
+}
+```
+</RequestExample>
+
+<ResponseExample>
+```json
+{
+  "mensaje": "Alumno Juan Pérez creado correctamente"
+}
+```
+</ResponseExample>
+
+## Business Logic
+
+The service performs the following validations:
+
+1. **DNI Uniqueness**: Validates that the DNI is not already registered in the system
+2. **Class Plan Validation**: Ensures `cantidadClases` is one of: 4, 8, 12, or 16
+3. **Pension Logic**: If `tipoPension` is `CABALLO_PROPIO`, the `cuotaPension` should be provided
+
+## Error Responses
+
+<ResponseField name="400" type="object">
+  Bad Request - Validation errors (e.g., invalid field values, DNI already exists, invalid cantidadClases)
+</ResponseField>
+
+<ResponseField name="422" type="object">
+  Unprocessable Entity - Business logic validation failed
+</ResponseField>

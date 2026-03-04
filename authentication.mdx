@@ -1,0 +1,681 @@
+---
+title: "Authentication"
+description: "Learn how to authenticate with the HRS Riding School API using HTTP Basic Authentication, register users, and manage roles."
+---
+
+## Overview
+
+The HRS Riding School API uses **HTTP Basic Authentication** for securing endpoints. All requests (except registration) require valid credentials sent in the `Authorization` header.
+
+<Info>
+  Basic Authentication sends credentials as a Base64-encoded string in the format `username:password`. While simple to implement, always use HTTPS in production to protect credentials.
+</Info>
+
+## Authentication Flow
+
+<Steps>
+  <Step title="Register a new user">
+    Only users with whitelisted email addresses can register. The whitelist is configured in the application properties.
+  </Step>
+  
+  <Step title="Login with credentials">
+    Send your username and password using Basic Auth to verify your account and retrieve user details.
+  </Step>
+  
+  <Step title="Include credentials in all requests">
+    Every subsequent API request must include the `Authorization` header with your credentials.
+  </Step>
+</Steps>
+
+## User Registration
+
+### Email Whitelist Validation
+
+Before users can register, their email must be in the whitelist. This is configured via the `app.whitelist.emails` property:
+
+```properties
+# In application-dev.properties or .env file
+app.whitelist.emails=admin@example.com,instructor@example.com,student@example.com
+```
+
+<Warning>
+  Registration will fail with a `409 Conflict` error if the email is not whitelisted.
+</Warning>
+
+### Check Email Whitelist Status
+
+You can verify if an email is whitelisted:
+
+```bash
+curl -X GET http://localhost:8080/api/v1/auth/check-email/admin@example.com
+```
+
+**Response:**
+- `200 OK` - Email is whitelisted
+- `403 Forbidden` - Email is not whitelisted
+
+### Register Endpoint
+
+**Endpoint:** `POST /api/v1/auth/register`
+
+**Authentication:** None required (public endpoint)
+
+**Request Body:**
+
+```json
+{
+  "username": "johndoe",
+  "email": "johndoe@example.com",
+  "password": "SecurePassword123!",
+  "rol": "ALUMNO",
+  "personaDni": 12345678,
+  "avatarUrl": "https://example.com/avatar.jpg"
+}
+```
+
+<Note>
+  The `personaDni` and `avatarUrl` fields are optional. Use `personaDni` to link the user account with an existing student (Alumno) or instructor (Instructor) record.
+</Note>
+
+**Field Validations:**
+
+| Field | Required | Validation |
+|-------|----------|------------|
+| `username` | Yes | Cannot be empty, must be unique |
+| `email` | Yes | Must be a valid email format, must be unique, must be whitelisted |
+| `password` | Yes | Cannot be empty (stored as BCrypt hash) |
+| `rol` | Yes | Must be one of: `ADMIN`, `INSTRUCTOR`, `ALUMNO` |
+| `personaDni` | No | Integer, links to existing Alumno/Instructor |
+| `avatarUrl` | No | String, URL to user's avatar image |
+
+### Example Registration Requests
+
+<CodeGroup>
+```bash cURL
+curl -X POST http://localhost:8080/api/v1/auth/register \
+  -H "Content-Type: application/json" \
+  -d '{
+    "username": "admin_user",
+    "email": "admin@example.com",
+    "password": "AdminPass123!",
+    "rol": "ADMIN"
+  }'
+```
+
+```bash cURL (with person link)
+curl -X POST http://localhost:8080/api/v1/auth/register \
+  -H "Content-Type: application/json" \
+  -d '{
+    "username": "maria_instructor",
+    "email": "maria@example.com",
+    "password": "SecurePass456!",
+    "rol": "INSTRUCTOR",
+    "personaDni": 87654321
+  }'
+```
+
+```java Java
+HttpClient client = HttpClient.newHttpClient();
+HttpRequest request = HttpRequest.newBuilder()
+    .uri(URI.create("http://localhost:8080/api/v1/auth/register"))
+    .header("Content-Type", "application/json")
+    .POST(HttpRequest.BodyPublishers.ofString(
+        """{
+          "username": "student_juan",
+          "email": "juan@example.com",
+          "password": "StudentPass789!",
+          "rol": "ALUMNO",
+          "personaDni": 12345678
+        }"""
+    ))
+    .build();
+
+HttpResponse<String> response = client.send(request, 
+    HttpResponse.BodyHandlers.ofString());
+```
+
+```javascript JavaScript (fetch)
+fetch('http://localhost:8080/api/v1/auth/register', {
+  method: 'POST',
+  headers: {
+    'Content-Type': 'application/json'
+  },
+  body: JSON.stringify({
+    username: 'instructor_carlos',
+    email: 'carlos@example.com',
+    password: 'InstructorPass321!',
+    rol: 'INSTRUCTOR'
+  })
+})
+.then(response => response.json())
+.then(data => console.log(data));
+```
+</CodeGroup>
+
+**Success Response (201 Created):**
+
+```json
+{
+  "mensaje": "Usuario registrado correctamente: admin_user"
+}
+```
+
+**Error Responses:**
+
+<Accordion title="409 Conflict - Email not whitelisted">
+```json
+{
+  "timestamp": "2024-03-15T10:30:00",
+  "status": 409,
+  "error": "Conflict",
+  "mensaje": "Email no autorizado para registro",
+  "path": "/api/v1/auth/register"
+}
+```
+</Accordion>
+
+<Accordion title="409 Conflict - Username already exists">
+```json
+{
+  "timestamp": "2024-03-15T10:30:00",
+  "status": 409,
+  "error": "Conflict",
+  "mensaje": "Usuario con username 'admin_user' ya existe",
+  "path": "/api/v1/auth/register"
+}
+```
+</Accordion>
+
+<Accordion title="409 Conflict - Email already exists">
+```json
+{
+  "timestamp": "2024-03-15T10:30:00",
+  "status": 409,
+  "error": "Conflict",
+  "mensaje": "Usuario con email 'admin@example.com' ya existe",
+  "path": "/api/v1/auth/register"
+}
+```
+</Accordion>
+
+<Accordion title="400 Bad Request - Validation error">
+```json
+{
+  "timestamp": "2024-03-15T10:30:00",
+  "status": 400,
+  "error": "Bad Request",
+  "mensaje": "El email debe ser válido",
+  "path": "/api/v1/auth/register"
+}
+```
+</Accordion>
+
+## User Roles
+
+The API supports three distinct user roles defined in the `RolSeguridad` enum:
+
+### ADMIN
+
+**Full system access:**
+- Manage all users, students, instructors, horses, and classes
+- Access all endpoints
+- View and export reports
+- Cancel entire day schedules
+
+```json
+{
+  "rol": "ADMIN"
+}
+```
+
+### INSTRUCTOR
+
+**Manages their own classes:**
+- View classes assigned to them
+- Update class status (INICIADA, COMPLETADA, etc.)
+- View student information
+- Limited administrative access
+
+```json
+{
+  "rol": "INSTRUCTOR"
+}
+```
+
+### ALUMNO
+
+**Student access:**
+- View their own class schedule
+- View their assigned horse (if any)
+- Check class history and statistics
+- Read-only access to personal data
+
+```json
+{
+  "rol": "ALUMNO"
+}
+```
+
+<Tip>
+  When creating a user with `INSTRUCTOR` or `ALUMNO` role, use the `personaDni` field to link the user account to an existing instructor or student record in the database.
+</Tip>
+
+## Login Endpoint
+
+Once registered, users authenticate using the login endpoint.
+
+**Endpoint:** `POST /api/v1/auth/login`
+
+**Authentication:** Basic Auth required
+
+**Headers:**
+
+```
+Authorization: Basic base64(username:password)
+```
+
+### Example Login Requests
+
+<CodeGroup>
+```bash cURL
+curl -X POST http://localhost:8080/api/v1/auth/login \
+  -u admin_user:AdminPass123!
+```
+
+```bash cURL (explicit header)
+curl -X POST http://localhost:8080/api/v1/auth/login \
+  -H "Authorization: Basic YWRtaW5fdXNlcjpBZG1pblBhc3MxMjMh"
+```
+
+```java Java
+String auth = "admin_user:AdminPass123!";
+String encodedAuth = Base64.getEncoder()
+    .encodeToString(auth.getBytes(StandardCharsets.UTF_8));
+
+HttpClient client = HttpClient.newHttpClient();
+HttpRequest request = HttpRequest.newBuilder()
+    .uri(URI.create("http://localhost:8080/api/v1/auth/login"))
+    .header("Authorization", "Basic " + encodedAuth)
+    .POST(HttpRequest.BodyPublishers.noBody())
+    .build();
+
+HttpResponse<String> response = client.send(request,
+    HttpResponse.BodyHandlers.ofString());
+```
+
+```javascript JavaScript (fetch)
+const username = 'admin_user';
+const password = 'AdminPass123!';
+const encodedAuth = btoa(`${username}:${password}`);
+
+fetch('http://localhost:8080/api/v1/auth/login', {
+  method: 'POST',
+  headers: {
+    'Authorization': `Basic ${encodedAuth}`
+  }
+})
+.then(response => response.json())
+.then(user => console.log(user));
+```
+
+```python Python (requests)
+import requests
+from requests.auth import HTTPBasicAuth
+
+response = requests.post(
+    'http://localhost:8080/api/v1/auth/login',
+    auth=HTTPBasicAuth('admin_user', 'AdminPass123!')
+)
+
+user = response.json()
+print(user)
+```
+</CodeGroup>
+
+**Success Response (200 OK):**
+
+```json
+{
+  "id": 1,
+  "username": "admin_user",
+  "email": "admin@example.com",
+  "rol": "ADMIN",
+  "personaDni": null,
+  "personaTipo": null,
+  "avatarUrl": null
+}
+```
+
+**Error Response (401 Unauthorized):**
+
+```json
+{
+  "timestamp": "2024-03-15T10:30:00",
+  "status": 401,
+  "error": "Unauthorized",
+  "mensaje": "Credenciales inválidas",
+  "path": "/api/v1/auth/login"
+}
+```
+
+## Validate Credentials
+
+You can validate credentials without retrieving user data:
+
+**Endpoint:** `GET /api/v1/auth/validate`
+
+**Authentication:** Basic Auth required
+
+```bash
+curl -X GET http://localhost:8080/api/v1/auth/validate \
+  -u admin_user:AdminPass123!
+```
+
+**Success Response (200 OK):**
+
+```
+(Empty body - credentials are valid)
+```
+
+**Error Response (401 Unauthorized):**
+
+```json
+{
+  "timestamp": "2024-03-15T10:30:00",
+  "status": 401,
+  "error": "Unauthorized",
+  "mensaje": "Full authentication is required to access this resource",
+  "path": "/api/v1/auth/validate"
+}
+```
+
+## Authenticated Requests
+
+All protected endpoints require the `Authorization` header with Basic Auth credentials.
+
+### Example Authenticated Requests
+
+<CodeGroup>
+```bash List Students
+curl -X GET http://localhost:8080/api/v1/alumnos \
+  -u admin_user:AdminPass123!
+```
+
+```bash Create Horse
+curl -X POST http://localhost:8080/api/v1/caballos \
+  -u admin_user:AdminPass123! \
+  -H "Content-Type: application/json" \
+  -d '{
+    "nombre": "Lightning",
+    "disponible": true,
+    "tipo": "ESCUELA"
+  }'
+```
+
+```bash Get Instructor by ID
+curl -X GET http://localhost:8080/api/v1/instructores/1 \
+  -u admin_user:AdminPass123!
+```
+
+```bash Update Student
+curl -X PUT http://localhost:8080/api/v1/alumnos/1 \
+  -u admin_user:AdminPass123! \
+  -H "Content-Type: application/json" \
+  -d '{
+    "dni": "12345678",
+    "nombre": "Juan Carlos",
+    "apellido": "Pérez",
+    "fechaNacimiento": "1995-05-15",
+    "telefono": "1234567890",
+    "email": "juan.perez@example.com",
+    "fechaInscripcion": "2024-01-15",
+    "cantidadClases": 12,
+    "activo": true,
+    "propietario": false,
+    "tipoPension": "SIN_CABALLO"
+  }'
+```
+</CodeGroup>
+
+## Logout Endpoint
+
+**Endpoint:** `POST /api/v1/auth/logout`
+
+**Authentication:** None required
+
+<Note>
+  Since Basic Auth is stateless (no server-side session), the logout endpoint doesn't actually terminate anything on the server. It returns `200 OK` to allow the client to confirm logout actions (e.g., clearing stored credentials).
+</Note>
+
+```bash
+curl -X POST http://localhost:8080/api/v1/auth/logout
+```
+
+**Response (200 OK):**
+
+```
+(Empty body)
+```
+
+## User Management
+
+Administrators can manage user accounts through these endpoints:
+
+### List All Users
+
+**Endpoint:** `GET /api/v1/auth/users`
+
+**Role Required:** ADMIN
+
+```bash
+curl -X GET http://localhost:8080/api/v1/auth/users \
+  -u admin_user:AdminPass123!
+```
+
+**Response:**
+
+```json
+[
+  {
+    "id": 1,
+    "username": "admin_user",
+    "email": "admin@example.com",
+    "rol": "ADMIN",
+    "personaDni": null,
+    "personaTipo": null,
+    "avatarUrl": null
+  },
+  {
+    "id": 2,
+    "username": "maria_instructor",
+    "email": "maria@example.com",
+    "rol": "INSTRUCTOR",
+    "personaDni": 87654321,
+    "personaTipo": "INSTRUCTOR",
+    "avatarUrl": null
+  }
+]
+```
+
+### Get User by ID
+
+**Endpoint:** `GET /api/v1/auth/users/{id}`
+
+```bash
+curl -X GET http://localhost:8080/api/v1/auth/users/1 \
+  -u admin_user:AdminPass123!
+```
+
+### Update User
+
+**Endpoint:** `PUT /api/v1/auth/users/{id}`
+
+```bash
+curl -X PUT http://localhost:8080/api/v1/auth/users/2 \
+  -u admin_user:AdminPass123! \
+  -H "Content-Type: application/json" \
+  -d '{
+    "username": "maria_instructor",
+    "email": "maria.gonzalez@example.com",
+    "password": "NewPassword123!",
+    "rol": "INSTRUCTOR",
+    "personaDni": 87654321
+  }'
+```
+
+### Delete User
+
+**Endpoint:** `DELETE /api/v1/auth/users/{id}`
+
+**Role Required:** ADMIN
+
+```bash
+curl -X DELETE http://localhost:8080/api/v1/auth/users/3 \
+  -u admin_user:AdminPass123!
+```
+
+**Response:**
+
+```json
+{
+  "mensaje": "Usuario eliminado correctamente"
+}
+```
+
+## Upload User Avatar
+
+Users can upload an avatar image:
+
+**Endpoint:** `POST /api/v1/auth/users/{id}/avatar`
+
+**Content-Type:** `multipart/form-data`
+
+```bash
+curl -X POST http://localhost:8080/api/v1/auth/users/1/avatar \
+  -u admin_user:AdminPass123! \
+  -F "avatar=@/path/to/image.jpg"
+```
+
+**Response:**
+
+```json
+{
+  "avatarUrl": "http://localhost:8080/uploads/avatar_1_1710501234567.jpg"
+}
+```
+
+<Info>
+  The avatar is stored on the server and the URL is saved to the user record. Maximum file size is 2MB.
+</Info>
+
+## Security Configuration
+
+The API security is configured in `SecurityConfig.java` with the following settings:
+
+### CORS Configuration
+
+```java
+// Default allowed origin: http://localhost:5173
+// Configure via: cors.allowed-origins property
+Configuration:
+- Allowed Methods: GET, POST, PUT, DELETE, PATCH, OPTIONS
+- Allowed Headers: Authorization, Content-Type, Accept
+- Credentials: Allowed
+```
+
+### Password Encoding
+
+Passwords are hashed using **BCrypt** before storage:
+
+```java
+@Bean
+public PasswordEncoder passwordEncoder() {
+    return new BCryptPasswordEncoder();
+}
+```
+
+<Warning>
+  Never store or log plain-text passwords. The API automatically hashes passwords during registration.
+</Warning>
+
+### Endpoint Security
+
+Public endpoints (no authentication required):
+- `POST /api/v1/auth/register`
+- `POST /api/v1/auth/logout`
+- `/uploads/**` (static files)
+- `/error` (error page)
+
+Protected endpoints (authentication required):
+- `POST /api/v1/auth/login`
+- `GET /api/v1/auth/validate`
+- All other `/api/v1/**` endpoints
+
+Admin-only endpoints:
+- `GET /` (root endpoint)
+
+## Error Handling
+
+All authentication errors follow a consistent format:
+
+```json
+{
+  "timestamp": "2024-03-15T10:30:00",
+  "status": 401,
+  "error": "Unauthorized",
+  "mensaje": "Full authentication is required to access this resource",
+  "path": "/api/v1/alumnos"
+}
+```
+
+**Common HTTP Status Codes:**
+
+| Status | Description |
+|--------|-------------|
+| `200 OK` | Request successful |
+| `201 Created` | User registered successfully |
+| `400 Bad Request` | Validation error (invalid email, missing fields, etc.) |
+| `401 Unauthorized` | Invalid credentials or missing authentication |
+| `403 Forbidden` | Email not whitelisted |
+| `404 Not Found` | User not found |
+| `409 Conflict` | Username or email already exists |
+
+## Best Practices
+
+<CardGroup cols={2}>
+  <Card title="Use HTTPS" icon="lock">
+    Always use HTTPS in production to encrypt credentials sent via Basic Auth.
+  </Card>
+  
+  <Card title="Strong Passwords" icon="key">
+    Enforce strong password policies on the client side before registration.
+  </Card>
+  
+  <Card title="Credential Storage" icon="vault">
+    Never store passwords in plain text. Use secure credential storage on clients.
+  </Card>
+  
+  <Card title="Token Alternative" icon="coins">
+    Consider implementing JWT tokens for mobile apps or long-lived sessions.
+  </Card>
+</CardGroup>
+
+## Next Steps
+
+<CardGroup cols={2}>
+  <Card title="Quickstart" icon="rocket" href="/quickstart">
+    Get started with the API in minutes
+  </Card>
+  
+  <Card title="Students API" icon="graduation-cap">
+    Learn how to manage students (alumnos)
+  </Card>
+  
+  <Card title="Instructors API" icon="chalkboard-user">
+    Manage instructors and their classes
+  </Card>
+  
+  <Card title="Classes API" icon="calendar">
+    Create and schedule riding classes
+  </Card>
+</CardGroup>

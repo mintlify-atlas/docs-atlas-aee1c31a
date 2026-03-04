@@ -1,0 +1,314 @@
+---
+title: "List Classes"
+api: "GET /api/v1/clases"
+---
+
+Endpoints for retrieving riding class information from the HRS system.
+
+## List All Classes
+
+<api method="GET" endpoint="/api/v1/clases" />
+
+Retrieves all classes without related entity details (basic information only).
+
+### Response
+
+Returns an array of `Clase` objects.
+
+<ResponseField name="id" type="Long">
+Unique identifier for the class
+</ResponseField>
+
+<ResponseField name="especialidad" type="Especialidad" required>
+Class specialty. Valid values:
+- `EQUINOTERAPIA` - Equine therapy
+- `EQUITACION` - Horse riding
+- `ADIESTRAMIENTO` - Training
+- `MONTA` - Mounting
+</ResponseField>
+
+<ResponseField name="dia" type="LocalDate" required>
+Class date in ISO-8601 format (YYYY-MM-DD)
+</ResponseField>
+
+<ResponseField name="hora" type="LocalTime" required>
+Class time in ISO-8601 format (HH:mm:ss)
+</ResponseField>
+
+<ResponseField name="duracion" type="Integer" required>
+Class duration in minutes (minimum 30)
+</ResponseField>
+
+<ResponseField name="estado" type="Estado" required>
+Class state. Valid values:
+- `PROGRAMADA` - Scheduled
+- `INICIADA` - Started
+- `COMPLETADA` - Completed
+- `CANCELADA` - Cancelled
+- `ACA` - Absent with notice (Ausente Con Aviso)
+- `ASA` - Absent without notice (Ausente Sin Aviso)
+</ResponseField>
+
+<ResponseField name="observaciones" type="String">
+Optional notes or observations (max 50 characters)
+</ResponseField>
+
+<ResponseField name="esPrueba" type="Boolean" required>
+Indicates if this is a trial class
+</ResponseField>
+
+<ResponseField name="diaHoraCompleto" type="LocalDateTime">
+Computed field combining date and time
+</ResponseField>
+
+---
+
+## Get Class by ID
+
+<api method="GET" endpoint="/api/v1/clases/{id}" />
+
+Retrieves a single class by its ID without related entity details.
+
+### Path Parameters
+
+<ParamField path="id" type="Long" required>
+The unique identifier of the class
+</ParamField>
+
+### Response
+
+Returns a `Clase` object with the same fields as listed above.
+
+---
+
+## List All Classes with Details
+
+<api method="GET" endpoint="/api/v1/clases/detalles" />
+
+Retrieves all classes with complete information about related entities (instructor, student, horse).
+
+### Response
+
+Returns an array of `ClaseResponseDto` objects.
+
+<ResponseField name="id" type="Long">
+Unique identifier for the class
+</ResponseField>
+
+<ResponseField name="especialidad" type="Especialidad" required>
+Class specialty (EQUINOTERAPIA, EQUITACION, ADIESTRAMIENTO, MONTA)
+</ResponseField>
+
+<ResponseField name="dia" type="LocalDate" required>
+Class date
+</ResponseField>
+
+<ResponseField name="hora" type="LocalTime" required>
+Class time
+</ResponseField>
+
+<ResponseField name="duracion" type="Integer" required>
+Duration in minutes
+</ResponseField>
+
+<ResponseField name="estado" type="Estado" required>
+Class state
+</ResponseField>
+
+<ResponseField name="observaciones" type="String">
+Optional observations
+</ResponseField>
+
+<ResponseField name="esPrueba" type="Boolean" required>
+Trial class flag
+</ResponseField>
+
+<ResponseField name="instructorId" type="Long">
+Instructor's unique identifier
+</ResponseField>
+
+<ResponseField name="instructorNombre" type="String">
+Instructor's first name
+</ResponseField>
+
+<ResponseField name="instructorApellido" type="String">
+Instructor's last name
+</ResponseField>
+
+<ResponseField name="instructorNombreCompleto" type="String">
+Instructor's full name
+</ResponseField>
+
+<ResponseField name="alumnoId" type="Long">
+Student's unique identifier (null for trial classes with personaPrueba)
+</ResponseField>
+
+<ResponseField name="alumnoNombre" type="String">
+Student's first name
+</ResponseField>
+
+<ResponseField name="alumnoApellido" type="String">
+Student's last name
+</ResponseField>
+
+<ResponseField name="alumnoNombreCompleto" type="String">
+Student's full name
+</ResponseField>
+
+<ResponseField name="personaPruebaId" type="Long">
+Trial person's unique identifier (for trial classes)
+</ResponseField>
+
+<ResponseField name="personaPruebaNombre" type="String">
+Trial person's first name
+</ResponseField>
+
+<ResponseField name="personaPruebaApellido" type="String">
+Trial person's last name
+</ResponseField>
+
+<ResponseField name="personaPruebaNombreCompleto" type="String">
+Trial person's full name
+</ResponseField>
+
+<ResponseField name="caballoId" type="Long">
+Horse's unique identifier
+</ResponseField>
+
+<ResponseField name="caballoNombre" type="String">
+Horse's name
+</ResponseField>
+
+<ResponseField name="caballoTipo" type="String">
+Horse's type
+</ResponseField>
+
+<ResponseField name="diaHoraCompleto" type="LocalDateTime">
+Combined date and time
+</ResponseField>
+
+---
+
+## Get Class with Details by ID
+
+<api method="GET" endpoint="/api/v1/clases/{id}/detalles" />
+
+Retrieves a single class with complete details about instructor, student/trial person, and horse.
+
+### Path Parameters
+
+<ParamField path="id" type="Long" required>
+The unique identifier of the class
+</ParamField>
+
+### Response
+
+Returns a `ClaseResponseDto` object with all fields listed in the "List All Classes with Details" section.
+
+### Error Responses
+
+<ResponseField name="error" type="String">
+Returns 404 Not Found if class does not exist
+</ResponseField>
+
+---
+
+## Get Classes by Date with Details
+
+<api method="GET" endpoint="/api/v1/clases/dia/{dia}/detalles" />
+
+Retrieves all classes for a specific date with complete details.
+
+### Path Parameters
+
+<ParamField path="dia" type="LocalDate" required>
+The date to filter classes (ISO-8601 format: YYYY-MM-DD)
+</ParamField>
+
+### Response
+
+Returns an array of `ClaseResponseDto` objects for the specified date.
+
+---
+
+## Get Classes by Instructor with Details
+
+<api method="GET" endpoint="/api/v1/clases/instructor/{instructorId}/detalles" />
+
+Retrieves all classes taught by a specific instructor with complete details.
+
+### Path Parameters
+
+<ParamField path="instructorId" type="Long" required>
+The unique identifier of the instructor
+</ParamField>
+
+### Response
+
+Returns an array of `ClaseResponseDto` objects for the specified instructor.
+
+---
+
+## Get Classes by Student with Details
+
+<api method="GET" endpoint="/api/v1/clases/alumno/{alumnoId}/detalles" />
+
+Retrieves all classes for a specific student with complete details.
+
+### Path Parameters
+
+<ParamField path="alumnoId" type="Long" required>
+The unique identifier of the student
+</ParamField>
+
+### Response
+
+Returns an array of `ClaseResponseDto` objects for the specified student.
+
+---
+
+## Get Classes by Horse with Details
+
+<api method="GET" endpoint="/api/v1/clases/caballo/{caballoId}/detalles" />
+
+Retrieves all classes for a specific horse with complete details.
+
+### Path Parameters
+
+<ParamField path="caballoId" type="Long" required>
+The unique identifier of the horse
+</ParamField>
+
+### Response
+
+Returns an array of `ClaseResponseDto` objects for the specified horse.
+
+---
+
+## Get Classes by State with Details
+
+<api method="GET" endpoint="/api/v1/clases/estado/{estado}/detalles" />
+
+Retrieves all classes with a specific state with complete details.
+
+### Path Parameters
+
+<ParamField path="estado" type="Estado" required>
+The class state to filter by. Valid values:
+- `PROGRAMADA` - Scheduled
+- `INICIADA` - Started  
+- `COMPLETADA` - Completed
+- `CANCELADA` - Cancelled
+- `ACA` - Absent with notice
+- `ASA` - Absent without notice
+</ParamField>
+
+### Response
+
+Returns an array of `ClaseResponseDto` objects matching the specified state.
+
+### Error Responses
+
+<ResponseField name="mensaje" type="String">
+Returns 404 Not Found with message "No existen clases {estado}" if no classes exist with that state
+</ResponseField>

@@ -1,0 +1,201 @@
+---
+title: "Update Instructor"
+api: "PUT /api/v1/instructores/{id}"
+---
+
+Updates an existing instructor's information in the riding school system.
+
+## Path Parameters
+
+<ParamField path="id" type="long" required>
+  The unique identifier of the instructor to update
+</ParamField>
+
+## Request Body
+
+<ParamField body="dni" type="string" required>
+  National identification number
+  
+  **Validation:**
+  - Must be between 7-9 digits
+  - Only numeric characters allowed
+  - Cannot be blank
+</ParamField>
+
+<ParamField body="nombre" type="string" required>
+  First name of the instructor
+  
+  **Validation:**
+  - Must be between 2-50 characters
+  - Cannot be blank
+</ParamField>
+
+<ParamField body="apellido" type="string" required>
+  Last name of the instructor
+  
+  **Validation:**
+  - Must be between 2-50 characters
+  - Cannot be blank
+</ParamField>
+
+<ParamField body="fechaNacimiento" type="date" required>
+  Birth date in ISO 8601 format (YYYY-MM-DD)
+  
+  **Validation:**
+  - Must be a past date
+  - Cannot be null
+</ParamField>
+
+<ParamField body="telefono" type="string" required>
+  Phone number
+  
+  **Validation:**
+  - Must be between 10-15 characters
+  - Only numeric characters allowed, optionally prefixed with '+'
+  - Cannot be blank
+</ParamField>
+
+<ParamField body="email" type="string">
+  Email address
+  
+  **Validation:**
+  - Must be a valid email format
+</ParamField>
+
+<ParamField body="activo" type="boolean" required>
+  Whether the instructor is active
+  
+  **Validation:**
+  - Cannot be null
+</ParamField>
+
+<ParamField body="color" type="string" required>
+  Color code assigned to the instructor (hex format)
+  
+  **Validation:**
+  - Cannot be null or empty
+  - Maximum 7 characters
+</ParamField>
+
+## Response
+
+<ResponseField name="mensaje" type="string">
+  Success message confirming the instructor update
+</ResponseField>
+
+<RequestExample>
+```bash cURL
+curl -X PUT "https://api.ridingschool.example/api/v1/instructores/1" \
+  -H "Content-Type: application/json" \
+  -d '{
+    "dni": "12345678",
+    "nombre": "Juan",
+    "apellido": "García",
+    "fechaNacimiento": "1985-03-15",
+    "telefono": "+34612345678",
+    "email": "juan.garcia.updated@example.com",
+    "activo": true,
+    "color": "#FF5733"
+  }'
+```
+
+```javascript JavaScript
+const response = await fetch('https://api.ridingschool.example/api/v1/instructores/1', {
+  method: 'PUT',
+  headers: {
+    'Content-Type': 'application/json'
+  },
+  body: JSON.stringify({
+    dni: '12345678',
+    nombre: 'Juan',
+    apellido: 'García',
+    fechaNacimiento: '1985-03-15',
+    telefono: '+34612345678',
+    email: 'juan.garcia.updated@example.com',
+    activo: true,
+    color: '#FF5733'
+  })
+});
+
+const data = await response.json();
+```
+
+```python Python
+import requests
+
+url = 'https://api.ridingschool.example/api/v1/instructores/1'
+data = {
+    'dni': '12345678',
+    'nombre': 'Juan',
+    'apellido': 'García',
+    'fechaNacimiento': '1985-03-15',
+    'telefono': '+34612345678',
+    'email': 'juan.garcia.updated@example.com',
+    'activo': True,
+    'color': '#FF5733'
+}
+
+response = requests.put(url, json=data)
+result = response.json()
+```
+</RequestExample>
+
+<ResponseExample>
+```json 200
+{
+  "mensaje": "Instructor con ID 1 actualizado correctamente"
+}
+```
+
+```json 404
+{
+  "timestamp": "2024-03-15T10:30:00",
+  "status": 404,
+  "error": "Not Found",
+  "message": "Instructor not found with ID: 1",
+  "path": "/api/v1/instructores/1"
+}
+```
+
+```json 400
+{
+  "timestamp": "2024-03-15T10:30:00",
+  "status": 400,
+  "error": "Bad Request",
+  "message": "Validation failed",
+  "errors": [
+    {
+      "field": "dni",
+      "message": "El DNI debe tener entre 7 y 9 dígitos"
+    },
+    {
+      "field": "email",
+      "message": "El email debe tener un formato válido"
+    }
+  ],
+  "path": "/api/v1/instructores/1"
+}
+```
+</ResponseExample>
+
+## Validation Rules
+
+All fields follow the same validation rules as the create endpoint:
+
+| Field | Type | Required | Constraints |
+|-------|------|----------|-------------|
+| dni | string | Yes | 7-9 numeric digits |
+| nombre | string | Yes | 2-50 characters |
+| apellido | string | Yes | 2-50 characters |
+| fechaNacimiento | date | Yes | Must be in the past |
+| telefono | string | Yes | 10-15 characters, numeric with optional + prefix |
+| email | string | No | Valid email format |
+| activo | boolean | Yes | true or false |
+| color | string | Yes | Max 7 characters (hex color code) |
+
+## Notes
+
+- The instructor must exist in the system before it can be updated
+- All required fields must be provided in the request body
+- The DNI must be unique across all instructors
+- Updating an instructor does not affect their associated classes

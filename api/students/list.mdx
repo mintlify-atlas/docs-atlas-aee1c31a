@@ -1,0 +1,228 @@
+---
+title: "List Students"
+api: "GET /api/v1/alumnos"
+---
+
+## List All Students
+
+Retrieves a list of all students with summary information.
+
+### Response
+
+Returns an array of `AlumnoListadoDto` objects.
+
+<ResponseField name="id" type="long">
+  Unique identifier for the student
+</ResponseField>
+
+<ResponseField name="nombre" type="string">
+  Student's first name
+</ResponseField>
+
+<ResponseField name="apellido" type="string">
+  Student's last name
+</ResponseField>
+
+<ResponseField name="dni" type="string">
+  Student's national identification number (DNI)
+</ResponseField>
+
+<ResponseField name="email" type="string">
+  Student's email address
+</ResponseField>
+
+<ResponseField name="telefono" type="string">
+  Student's phone number
+</ResponseField>
+
+<ResponseField name="fechaNacimiento" type="date">
+  Student's date of birth (ISO 8601 format: YYYY-MM-DD)
+</ResponseField>
+
+<ResponseField name="fechaInscripcion" type="date">
+  Date when the student enrolled (ISO 8601 format: YYYY-MM-DD)
+</ResponseField>
+
+<ResponseField name="activo" type="boolean">
+  Whether the student is active (true) or inactive (false). Trial students are typically inactive until converted to a plan.
+</ResponseField>
+
+<ResponseField name="propietario" type="boolean">
+  Whether the student owns their own horse
+</ResponseField>
+
+<ResponseField name="cantidadClases" type="integer">
+  Number of classes in the student's plan. Valid values: 4, 8, 12, or 16
+</ResponseField>
+
+<ResponseField name="tipoPension" type="string">
+  Type of horse boarding arrangement:
+  - `SIN_CABALLO`: Assigned a school horse at no extra cost
+  - `RESERVA_ESCUELA`: Reserved school horse (pays reservation fee)
+  - `CABALLO_PROPIO`: Own horse (pays boarding fee)
+</ResponseField>
+
+<ResponseField name="cuotaPension" type="string">
+  Boarding fee quota (only applies when tipoPension is `CABALLO_PROPIO`):
+  - `ENTERA`: Full boarding
+  - `MEDIA`: Half boarding
+  - `TERCIO`: Third boarding
+</ResponseField>
+
+<ResponseField name="caballoId" type="long">
+  ID of the student's assigned or owned horse
+</ResponseField>
+
+<ResponseField name="caballoNombre" type="string">
+  Name of the student's assigned or owned horse
+</ResponseField>
+
+<ResponseExample>
+```json
+[
+  {
+    "id": 1,
+    "nombre": "Juan",
+    "apellido": "Pérez",
+    "dni": "12345678",
+    "email": "juan.perez@example.com",
+    "telefono": "+5491112345678",
+    "fechaNacimiento": "1995-03-15",
+    "fechaInscripcion": "2024-01-10",
+    "activo": true,
+    "propietario": false,
+    "cantidadClases": 8,
+    "tipoPension": "SIN_CABALLO",
+    "cuotaPension": null,
+    "caballoId": 5,
+    "caballoNombre": "Thunder"
+  }
+]
+```
+</ResponseExample>
+
+---
+
+## Get Student by ID
+
+<api>GET /api/v1/alumnos/{id}</api>
+
+Retrieves a single student by their unique identifier.
+
+### Path Parameters
+
+<ParamField path="id" type="long" required>
+  The unique identifier of the student
+</ParamField>
+
+### Response
+
+Returns a single `AlumnoListadoDto` object with the same structure as listed above.
+
+<ResponseExample>
+```json
+{
+  "id": 1,
+  "nombre": "Juan",
+  "apellido": "Pérez",
+  "dni": "12345678",
+  "email": "juan.perez@example.com",
+  "telefono": "+5491112345678",
+  "fechaNacimiento": "1995-03-15",
+  "fechaInscripcion": "2024-01-10",
+  "activo": true,
+  "propietario": false,
+  "cantidadClases": 8,
+  "tipoPension": "SIN_CABALLO",
+  "cuotaPension": null,
+  "caballoId": 5,
+  "caballoNombre": "Thunder"
+}
+```
+</ResponseExample>
+
+### Error Responses
+
+<ResponseField name="404" type="string">
+  Returns `"No se encontró el alumno con ID {id}"` if the student is not found
+</ResponseField>
+
+---
+
+## Get Student by DNI
+
+<api>GET /api/v1/alumnos/dni/{dni}</api>
+
+Retrieves a student by their DNI (national identification number).
+
+### Path Parameters
+
+<ParamField path="dni" type="string" required>
+  The student's DNI (7-9 digits)
+</ParamField>
+
+### Response
+
+Returns the complete `Alumno` entity object.
+
+<ResponseExample>
+```json
+{
+  "id": 1,
+  "dni": "12345678",
+  "nombre": "Juan",
+  "apellido": "Pérez",
+  "fechaNacimiento": "1995-03-15",
+  "telefono": "+5491112345678",
+  "email": "juan.perez@example.com",
+  "fechaInscripcion": "2024-01-10",
+  "cantidadClases": 8,
+  "activo": true,
+  "propietario": false,
+  "tipoPension": "SIN_CABALLO",
+  "cuotaPension": null,
+  "caballoPropio": null
+}
+```
+</ResponseExample>
+
+### Error Responses
+
+<ResponseField name="404" type="object">
+  Throws `ResourceNotFoundException` if no student is found with the given DNI
+</ResponseField>
+
+---
+
+## List Trial Students
+
+<api>GET /api/v1/alumnos/prueba</api>
+
+Retrieves a list of students who are in trial status (inactive students who haven't been converted to a regular plan).
+
+### Response
+
+Returns an array of `Alumno` objects where `activo` is `false`.
+
+<ResponseExample>
+```json
+[
+  {
+    "id": 10,
+    "dni": "98765432",
+    "nombre": "María",
+    "apellido": "González",
+    "fechaNacimiento": "2000-07-22",
+    "telefono": "+5491198765432",
+    "email": "maria.gonzalez@example.com",
+    "fechaInscripcion": "2024-03-01",
+    "cantidadClases": 0,
+    "activo": false,
+    "propietario": false,
+    "tipoPension": "SIN_CABALLO",
+    "cuotaPension": null,
+    "caballoPropio": null
+  }
+]
+```
+</ResponseExample>

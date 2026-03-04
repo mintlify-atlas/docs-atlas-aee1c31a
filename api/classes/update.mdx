@@ -1,0 +1,143 @@
+---
+title: "Update Class"
+api: "PUT /api/v1/clases/{id}"
+---
+
+Update an existing riding class in the HRS system.
+
+## Update Class
+
+<api method="PUT" endpoint="/api/v1/clases/{id}" />
+
+Updates an existing class with new information. The entire class object is replaced with the provided data.
+
+### Path Parameters
+
+<ParamField path="id" type="Long" required>
+The unique identifier of the class to update
+</ParamField>
+
+### Request Body
+
+The request body uses `ClaseDto` with `AlActualizar` validation group.
+
+<ParamField body="especialidad" type="Especialidad">
+Class specialty. Valid values:
+- `EQUINOTERAPIA`
+- `EQUITACION`
+- `ADIESTRAMIENTO`
+- `MONTA`
+</ParamField>
+
+<ParamField body="dia" type="LocalDate" required>
+Class date in ISO-8601 format (YYYY-MM-DD)
+</ParamField>
+
+<ParamField body="hora" type="LocalTime" required>
+Class time in ISO-8601 format (HH:mm:ss)
+</ParamField>
+
+<ParamField body="duracion" type="Integer" required>
+Class duration in minutes. Minimum: 30
+</ParamField>
+
+<ParamField body="estado" type="Estado" required>
+Class state. Valid values:
+- `PROGRAMADA`
+- `INICIADA`
+- `COMPLETADA`
+- `CANCELADA`
+- `ACA`
+- `ASA`
+</ParamField>
+
+<ParamField body="observaciones" type="String">
+Optional notes (max 50 characters)
+</ParamField>
+
+<ParamField body="instructorId" type="Long" required>
+Instructor ID
+</ParamField>
+
+<ParamField body="alumnoId" type="Long">
+Student ID (nullable for trial classes)
+</ParamField>
+
+<ParamField body="personaPruebaId" type="Long">
+Trial person ID (for trial classes)
+</ParamField>
+
+<ParamField body="caballoId" type="Long" required>
+Horse ID (must be positive)
+</ParamField>
+
+<ParamField body="esPrueba" type="Boolean">
+Trial class indicator
+</ParamField>
+
+### Update Restrictions
+
+<Warning>
+The service layer enforces restrictions on editing completed classes:
+
+1. **Completed Classes**: Classes with `estado = COMPLETADA` may have limited editability
+2. **Past Classes**: Additional restrictions may apply to classes in the past
+3. **Conflict Detection**: The system validates that the updated schedule doesn't create conflicts with instructor, student, or horse availability
+</Warning>
+
+### Validation Rules
+
+All validation rules from class creation apply, plus:
+
+- The class with the specified ID must exist
+- If rescheduling, the new time slot must be available
+- Changing instructor, student, or horse checks their availability at the new time
+- State transitions must follow valid workflow (see State Management documentation)
+
+### Response
+
+<ResponseField name="mensaje" type="String">
+Success message confirming the update
+
+Example: "Clase con ID 42 actualizada correctamente"
+</ResponseField>
+
+### Status Codes
+
+- `200 OK` - Class successfully updated
+- `400 Bad Request` - Invalid request body or validation errors
+- `404 Not Found` - Class with specified ID does not exist, or referenced entities don't exist
+- `409 Conflict` - Scheduling conflict detected or invalid state transition
+
+### Example Request
+
+```json
+{
+  "especialidad": "ADIESTRAMIENTO",
+  "dia": "2026-03-16",
+  "hora": "11:30:00",
+  "duracion": 90,
+  "estado": "PROGRAMADA",
+  "observaciones": "Entrenamiento avanzado",
+  "instructorId": 7,
+  "alumnoId": 12,
+  "caballoId": 10,
+  "esPrueba": false
+}
+```
+
+### Example Response
+
+```json
+{
+  "mensaje": "Clase con ID 42 actualizada correctamente"
+}
+```
+
+<Tip>
+If you only need to change the class state, use the more efficient `PATCH /api/v1/clases/{id}/estado` endpoint instead of updating the entire class.
+</Tip>
+
+<Note>
+Unlike the `POST` endpoint which uses `@Valid`, the `PUT` endpoint uses `@Validated(AlActualizar.class)` for validation, which may apply different validation rules specific to updates.
+</Note>

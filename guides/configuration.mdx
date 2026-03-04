@@ -1,0 +1,465 @@
+---
+title: 'Configuration'
+description: 'Configure the HRS Riding School API for different environments using Spring profiles and environment variables'
+---
+
+## Overview
+
+The HRS Riding School API uses Spring Boot profiles to manage configuration across different environments. The application supports three profiles:
+
+- **local** - Local development (default, uses H2 or local database)
+- **dev** - Development environment (PostgreSQL via Neon)
+- **prod** - Production environment (MySQL via Docker)
+
+## Profile Selection
+
+The active profile is determined by the `SPRING_PROFILE` environment variable:
+
+```properties application.properties
+spring.profiles.active=${SPRING_PROFILE:local}
+spring.application.name=hrs
+```
+
+<Info>
+  If `SPRING_PROFILE` is not set, the application defaults to the `local` profile.
+</Info>
+
+## Environment Variables
+
+Create a `.env` file in the project root based on `.env.example`:
+
+```bash .env.example
+SPRING_PROFILE=local
+
+# Base de datos PostgreSQL (Neon)
+DB_HOST=
+DB_NAME=
+DB_USER=
+DB_PASSWORD=
+
+# Servidor
+SERVER_PORT=8080
+
+# Emails permitidos para registro (separados por coma)
+WHITELIST_EMAILS=
+
+# CORS - dominio del frontend
+CORS_ALLOWED_ORIGINS=http://localhost:5173
+```
+
+### Required Variables
+
+| Variable | Description | Example | Required |
+|----------|-------------|---------|----------|
+| `SPRING_PROFILE` | Active Spring profile | `local`, `dev`, `prod` | Yes |
+| `DB_HOST` | Database host (dev/prod) | `ep-xxx.neon.tech` | For dev/prod |
+| `DB_NAME` | Database name | `hrs` | For dev/prod |
+| `DB_USER` | Database username | `postgres` | For dev/prod |
+| `DB_PASSWORD` | Database password | `SecurePass123` | For dev/prod |
+| `SERVER_PORT` | Server port | `8080` | No (default: 8080) |
+| `WHITELIST_EMAILS` | Allowed registration emails | `user@example.com,admin@example.com` | Yes |
+| `CORS_ALLOWED_ORIGINS` | Allowed CORS origins | `https://yourdomain.com` | Yes |
+
+## Profile Configuration
+
+### Local Profile
+
+<Note>
+  The local profile is intended for development with an in-memory H2 database or local database server.
+</Note>
+
+For local development, H2 database is included in dependencies:
+
+```xml pom.xml
+<dependency>
+  <groupId>com.h2database</groupId>
+  <artifactId>h2</artifactId>
+  <scope>runtime</scope>
+</dependency>
+```
+
+Configuration for local profile would typically include:
+- H2 in-memory database
+- SQL logging enabled
+- Debug level logging
+- No authentication required for development
+
+### Development Profile
+
+**Profile:** `dev`  
+**Database:** PostgreSQL (Neon)
+
+<CodeGroup>
+```properties application-dev.properties
+# Base de datos Neon/PostgreSQL
+spring.datasource.url=jdbc:postgresql://${DB_HOST}/neondb?sslmode=require
+spring.datasource.username=${DB_USER}
+spring.datasource.password=${DB_PASSWORD}
+spring.datasource.driver-class-name=org.postgresql.Driver
+
+# JPA
+spring.jpa.hibernate.ddl-auto=update
+spring.jpa.show-sql=true
+spring.jpa.properties.hibernate.format_sql=true
+spring.jpa.properties.hibernate.dialect=org.hibernate.dialect.PostgreSQLDialect
+
+server.port=${SERVER_PORT:8080}
+
+spring.sql.init.mode=never
+
+app.whitelist.emails=${WHITELIST_EMAILS:claumarnavarro@gmail.com,luckidetrenque@gmail.com,santiagomatheu@gmail.com}
+
+logging.level.com.escueladeequitacion.hrs=DEBUG
+spring.output.ansi.enabled=ALWAYS
+
+spring.servlet.multipart.max-file-size=2MB
+spring.servlet.multipart.max-request-size=2MB
+
+spring.jpa.properties.hibernate.jdbc.time_zone=America/Argentina/Buenos_Aires
+spring.jackson.time-zone=America/Argentina/Buenos_Aires
+spring.jackson.serialization.write-dates-as-timestamps=false
+
+# Batch inserts
+spring.jpa.properties.hibernate.jdbc.batch_size=50
+spring.jpa.properties.hibernate.order_inserts=true
+```
+</CodeGroup>
+
+**Key Features:**
+- PostgreSQL with SSL required
+- SQL logging and formatting enabled
+- DEBUG level logging for application
+- ANSI color output for console
+- Default whitelist emails for development
+
+### Production Profile
+
+**Profile:** `prod`  
+**Database:** MySQL 8.0
+
+<CodeGroup>
+```properties application-prod.properties
+# Database configuration
+spring.datasource.url=${DB_URL}
+spring.datasource.username=${DB_USERNAME}
+spring.datasource.password=${DB_PASSWORD}
+
+spring.jpa.hibernate.ddl-auto=update
+spring.jpa.show-sql=false
+spring.jpa.properties.hibernate.dialect=org.hibernate.dialect.MySQL8Dialect
+
+server.port=${SERVER_PORT:8080}
+
+spring.sql.init.mode=never
+
+app.whitelist.emails=${WHITELIST_EMAILS}
+
+logging.level.com.escueladeequitacion.hrs=INFO
+logging.level.org.springframework=WARN
+logging.level.org.hibernate=WARN
+
+spring.servlet.multipart.max-file-size=2MB
+spring.servlet.multipart.max-request-size=2MB
+
+spring.jpa.properties.hibernate.jdbc.time_zone=America/Argentina/Buenos_Aires
+spring.jackson.time-zone=America/Argentina/Buenos_Aires
+spring.jackson.serialization.write-dates-as-timestamps=false
+
+management.endpoints.web.exposure.include=health
+management.endpoint.health.show-details=never
+
+spring.jpa.properties.hibernate.jdbc.batch_size=50
+spring.jpa.properties.hibernate.order_inserts=true
+
+cors.allowed-origins=${CORS_ALLOWED_ORIGINS}
+
+app.show-error-details=false
+```
+</CodeGroup>
+
+**Key Features:**
+- MySQL 8.0 dialect
+- SQL logging disabled
+- INFO/WARN level logging only
+- Health endpoint exposed (no details)
+- Error details hidden from responses
+- CORS configured via environment variable
+
+## Database Configuration
+
+### PostgreSQL (Development)
+
+Used with the **dev** profile, typically with Neon or other PostgreSQL providers:
+
+```properties
+spring.datasource.url=jdbc:postgresql://${DB_HOST}/neondb?sslmode=require
+spring.datasource.driver-class-name=org.postgresql.Driver
+spring.jpa.properties.hibernate.dialect=org.hibernate.dialect.PostgreSQLDialect
+```
+
+**Maven Dependency:**
+```xml
+<dependency>
+  <groupId>org.postgresql</groupId>
+  <artifactId>postgresql</artifactId>
+  <version>42.7.3</version>
+</dependency>
+```
+
+### MySQL (Production)
+
+Used with the **prod** profile, configured in Docker Compose:
+
+```properties
+spring.datasource.url=${DB_URL}
+# Example: jdbc:mysql://mysql:3306/hrs?useSSL=false&serverTimezone=America%2FArgentina%2FBuenos_Aires&rewriteBatchedStatements=true
+spring.jpa.properties.hibernate.dialect=org.hibernate.dialect.MySQL8Dialect
+```
+
+**Docker Compose Database:**
+```yaml
+mysql:
+  image: mysql:8.0
+  environment:
+    MYSQL_DATABASE: hrs
+    MYSQL_ROOT_PASSWORD: ${DB_PASSWORD}
+```
+
+<Note>
+  MySQL dependency is commented out in `pom.xml` by default. Uncomment if building outside Docker:
+  
+  ```xml
+  <dependency>
+    <groupId>com.mysql</groupId>
+    <artifactId>mysql-connector-j</artifactId>
+    <scope>runtime</scope>
+  </dependency>
+  ```
+</Note>
+
+### H2 Database (Local)
+
+For local development and testing:
+
+```xml
+<dependency>
+  <groupId>com.h2database</groupId>
+  <artifactId>h2</artifactId>
+  <scope>runtime</scope>
+</dependency>
+```
+
+Typical H2 configuration (add to `application-local.properties` if needed):
+```properties
+spring.datasource.url=jdbc:h2:mem:hrsdb
+spring.datasource.driverClassName=org.h2.Driver
+spring.h2.console.enabled=true
+spring.jpa.hibernate.ddl-auto=create-drop
+```
+
+## Application Properties
+
+### Hibernate & JPA
+
+All profiles use similar JPA configuration:
+
+```properties
+spring.jpa.hibernate.ddl-auto=update
+spring.sql.init.mode=never
+```
+
+- `ddl-auto=update`: Automatically updates database schema
+- `sql.init.mode=never`: Doesn't run SQL initialization scripts
+
+<Warning>
+  Using `ddl-auto=update` in production can be risky. Consider using migration tools like Flyway or Liquibase for production databases.
+</Warning>
+
+### File Upload Settings
+
+All profiles limit file upload sizes:
+
+```properties
+spring.servlet.multipart.max-file-size=2MB
+spring.servlet.multipart.max-request-size=2MB
+```
+
+Uploaded files are stored in `/app/uploads` (Docker) or project directory (local).
+
+### Timezone Configuration
+
+The application uses Buenos Aires timezone:
+
+```properties
+spring.jpa.properties.hibernate.jdbc.time_zone=America/Argentina/Buenos_Aires
+spring.jackson.time-zone=America/Argentina/Buenos_Aires
+spring.jackson.serialization.write-dates-as-timestamps=false
+```
+
+### Batch Insert Optimization
+
+All profiles enable Hibernate batch inserts for better performance:
+
+```properties
+spring.jpa.properties.hibernate.jdbc.batch_size=50
+spring.jpa.properties.hibernate.order_inserts=true
+```
+
+This batches up to 50 INSERT statements together.
+
+## Security Configuration
+
+### Email Whitelist
+
+The application restricts user registration to whitelisted emails:
+
+<CodeGroup>
+```bash Development
+app.whitelist.emails=${WHITELIST_EMAILS:claumarnavarro@gmail.com,luckidetrenque@gmail.com,santiagomatheu@gmail.com}
+```
+
+```bash Production
+app.whitelist.emails=${WHITELIST_EMAILS}
+```
+</CodeGroup>
+
+**Usage in .env:**
+```bash
+WHITELIST_EMAILS=admin@example.com,user1@example.com,user2@example.com
+```
+
+<Info>
+  Separate multiple emails with commas (no spaces). Only users with these emails can register.
+</Info>
+
+### CORS Configuration
+
+CORS (Cross-Origin Resource Sharing) is configured via environment variable:
+
+```properties
+cors.allowed-origins=${CORS_ALLOWED_ORIGINS}
+```
+
+**Examples:**
+```bash
+# Development
+CORS_ALLOWED_ORIGINS=http://localhost:5173
+
+# Production
+CORS_ALLOWED_ORIGINS=https://yourdomain.com
+
+# Multiple origins (if supported)
+CORS_ALLOWED_ORIGINS=https://yourdomain.com,https://www.yourdomain.com
+```
+
+## Logging Configuration
+
+### Development Logging
+
+```properties
+logging.level.com.escueladeequitacion.hrs=DEBUG
+spring.output.ansi.enabled=ALWAYS
+spring.jpa.show-sql=true
+spring.jpa.properties.hibernate.format_sql=true
+```
+
+Enables:
+- DEBUG level for application code
+- Colored console output
+- SQL statement logging
+- Formatted SQL output
+
+### Production Logging
+
+```properties
+logging.level.com.escueladeequitacion.hrs=INFO
+logging.level.org.springframework=WARN
+logging.level.org.hibernate=WARN
+spring.jpa.show-sql=false
+```
+
+Enables:
+- INFO level for application
+- WARN level for frameworks
+- No SQL logging
+
+## Actuator Endpoints
+
+### Production Actuator
+
+Only the health endpoint is exposed in production:
+
+```properties
+management.endpoints.web.exposure.include=health
+management.endpoint.health.show-details=never
+```
+
+Access health check:
+```bash
+curl http://localhost:8080/actuator/health
+```
+
+Response:
+```json
+{
+  "status": "UP"
+}
+```
+
+<Warning>
+  Health details are hidden in production for security. Only the status is shown.
+</Warning>
+
+## Switching Profiles
+
+<Steps>
+  <Step title="Via Environment Variable">
+    Set the `SPRING_PROFILE` in your `.env` file:
+
+    ```bash
+    SPRING_PROFILE=dev
+    ```
+  </Step>
+
+  <Step title="Via Command Line">
+    Override the profile when running:
+
+    ```bash
+    # Maven
+    mvn spring-boot:run -Dspring-boot.run.profiles=prod
+
+    # JAR
+    java -jar -Dspring.profiles.active=prod hrs-0.0.1-SNAPSHOT.jar
+    ```
+  </Step>
+
+  <Step title="Via Docker">
+    The Dockerfile sets production profile by default:
+
+    ```dockerfile
+    ENTRYPOINT ["java", "-jar", "-Dspring.profiles.active=prod", "app.jar"]
+    ```
+  </Step>
+</Steps>
+
+## Configuration Summary
+
+| Feature | Local | Dev | Prod |
+|---------|-------|-----|------|
+| Database | H2 | PostgreSQL | MySQL |
+| SQL Logging | Yes | Yes | No |
+| Log Level | DEBUG | DEBUG | INFO/WARN |
+| Error Details | Yes | Yes | No |
+| Schema Mode | create-drop | update | update |
+| Health Details | Yes | Yes | No |
+| SSL Required | No | Yes | No (internal) |
+
+## Next Steps
+
+<Card title="Setup Guide" icon="download" href="/guides/setup">
+  Learn how to set up the application locally
+</Card>
+
+<Card title="Deployment Guide" icon="rocket" href="/guides/deployment">
+  Deploy to production with Docker
+</Card>

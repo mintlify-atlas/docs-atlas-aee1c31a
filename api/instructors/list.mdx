@@ -1,0 +1,280 @@
+---
+title: "List Instructors"
+api: "GET /api/v1/instructores"
+---
+
+Retrieves a list of all instructors in the riding school system.
+
+## Response
+
+<ResponseField name="instructors" type="array">
+  Array of instructor objects
+  
+  <Expandable title="Instructor object">
+    <ResponseField name="id" type="long">
+      Unique identifier for the instructor
+    </ResponseField>
+    
+    <ResponseField name="dni" type="string">
+      National identification number (7-9 digits)
+    </ResponseField>
+    
+    <ResponseField name="nombre" type="string">
+      First name of the instructor
+    </ResponseField>
+    
+    <ResponseField name="apellido" type="string">
+      Last name of the instructor
+    </ResponseField>
+    
+    <ResponseField name="nombreCompleto" type="string">
+      Full name (nombre + apellido)
+    </ResponseField>
+    
+    <ResponseField name="fechaNacimiento" type="date">
+      Birth date in ISO 8601 format (YYYY-MM-DD)
+    </ResponseField>
+    
+    <ResponseField name="telefono" type="string">
+      Phone number (10-15 characters, may include + prefix)
+    </ResponseField>
+    
+    <ResponseField name="email" type="string">
+      Email address
+    </ResponseField>
+    
+    <ResponseField name="activo" type="boolean">
+      Whether the instructor is currently active
+    </ResponseField>
+    
+    <ResponseField name="color" type="string">
+      Assigned color code for the instructor (hex format, max 7 characters)
+    </ResponseField>
+  </Expandable>
+</ResponseField>
+
+<RequestExample>
+```bash cURL
+curl -X GET "https://api.ridingschool.example/api/v1/instructores" \
+  -H "Content-Type: application/json"
+```
+</RequestExample>
+
+<ResponseExample>
+```json 200
+[
+  {
+    "id": 1,
+    "dni": "12345678",
+    "nombre": "Juan",
+    "apellido": "García",
+    "nombreCompleto": "Juan García",
+    "fechaNacimiento": "1985-03-15",
+    "telefono": "+34612345678",
+    "email": "juan.garcia@example.com",
+    "activo": true,
+    "color": "#FF5733"
+  },
+  {
+    "id": 2,
+    "dni": "87654321",
+    "nombre": "María",
+    "apellido": "López",
+    "nombreCompleto": "María López",
+    "fechaNacimiento": "1990-07-22",
+    "telefono": "+34687654321",
+    "email": "maria.lopez@example.com",
+    "activo": true,
+    "color": "#3498DB"
+  }
+]
+```
+</ResponseExample>
+
+---
+
+## Get Instructor by ID
+
+<api method="GET" path="/api/v1/instructores/{id}" />
+
+Retrieves a specific instructor by their unique identifier.
+
+### Path Parameters
+
+<ParamField path="id" type="long" required>
+  The unique identifier of the instructor
+</ParamField>
+
+### Response
+
+<ResponseField name="instructor" type="object">
+  <Expandable title="Instructor object">
+    <ResponseField name="id" type="long">
+      Unique identifier for the instructor
+    </ResponseField>
+    
+    <ResponseField name="dni" type="string">
+      National identification number
+    </ResponseField>
+    
+    <ResponseField name="nombre" type="string">
+      First name of the instructor
+    </ResponseField>
+    
+    <ResponseField name="apellido" type="string">
+      Last name of the instructor
+    </ResponseField>
+    
+    <ResponseField name="nombreCompleto" type="string">
+      Full name
+    </ResponseField>
+    
+    <ResponseField name="fechaNacimiento" type="date">
+      Birth date in ISO 8601 format
+    </ResponseField>
+    
+    <ResponseField name="telefono" type="string">
+      Phone number
+    </ResponseField>
+    
+    <ResponseField name="email" type="string">
+      Email address
+    </ResponseField>
+    
+    <ResponseField name="activo" type="boolean">
+      Active status
+    </ResponseField>
+    
+    <ResponseField name="color" type="string">
+      Assigned color code (hex format)
+    </ResponseField>
+  </Expandable>
+</ResponseField>
+
+<RequestExample>
+```bash cURL
+curl -X GET "https://api.ridingschool.example/api/v1/instructores/1" \
+  -H "Content-Type: application/json"
+```
+</RequestExample>
+
+<ResponseExample>
+```json 200
+{
+  "id": 1,
+  "dni": "12345678",
+  "nombre": "Juan",
+  "apellido": "García",
+  "nombreCompleto": "Juan García",
+  "fechaNacimiento": "1985-03-15",
+  "telefono": "+34612345678",
+  "email": "juan.garcia@example.com",
+  "activo": true,
+  "color": "#FF5733"
+}
+```
+
+```json 404
+{
+  "timestamp": "2024-03-15T10:30:00",
+  "status": 404,
+  "error": "Not Found",
+  "message": "Instructor not found with ID: 1",
+  "path": "/api/v1/instructores/1"
+}
+```
+</ResponseExample>
+
+---
+
+## Get Instructor by DNI
+
+<api method="GET" path="/api/v1/instructores/dni/{dni}" />
+
+Retrieves a specific instructor by their national identification number (DNI).
+
+### Path Parameters
+
+<ParamField path="dni" type="string" required>
+  The national identification number of the instructor (7-9 digits)
+</ParamField>
+
+### Response
+
+<ResponseField name="instructor" type="object">
+  <Expandable title="Instructor object">
+    <ResponseField name="id" type="long">
+      Unique identifier for the instructor
+    </ResponseField>
+    
+    <ResponseField name="dni" type="string">
+      National identification number
+    </ResponseField>
+    
+    <ResponseField name="nombre" type="string">
+      First name of the instructor
+    </ResponseField>
+    
+    <ResponseField name="apellido" type="string">
+      Last name of the instructor
+    </ResponseField>
+    
+    <ResponseField name="nombreCompleto" type="string">
+      Full name
+    </ResponseField>
+    
+    <ResponseField name="fechaNacimiento" type="date">
+      Birth date in ISO 8601 format
+    </ResponseField>
+    
+    <ResponseField name="telefono" type="string">
+      Phone number
+    </ResponseField>
+    
+    <ResponseField name="email" type="string">
+      Email address
+    </ResponseField>
+    
+    <ResponseField name="activo" type="boolean">
+      Active status
+    </ResponseField>
+    
+    <ResponseField name="color" type="string">
+      Assigned color code (hex format)
+    </ResponseField>
+  </Expandable>
+</ResponseField>
+
+<RequestExample>
+```bash cURL
+curl -X GET "https://api.ridingschool.example/api/v1/instructores/dni/12345678" \
+  -H "Content-Type: application/json"
+```
+</RequestExample>
+
+<ResponseExample>
+```json 200
+{
+  "id": 1,
+  "dni": "12345678",
+  "nombre": "Juan",
+  "apellido": "García",
+  "nombreCompleto": "Juan García",
+  "fechaNacimiento": "1985-03-15",
+  "telefono": "+34612345678",
+  "email": "juan.garcia@example.com",
+  "activo": true,
+  "color": "#FF5733"
+}
+```
+
+```json 404
+{
+  "timestamp": "2024-03-15T10:30:00",
+  "status": 404,
+  "error": "Not Found",
+  "message": "Instructor not found with DNI: 12345678",
+  "path": "/api/v1/instructores/dni/12345678"
+}
+```
+</ResponseExample>

@@ -1,0 +1,138 @@
+---
+title: "Delete Horse"
+api: "DELETE /api/v1/caballos/{id}"
+---
+
+## Physical Deletion
+
+Permanently deletes a horse from the riding school system.
+
+### Path Parameters
+
+<ParamField path="id" type="long" required>
+  The unique identifier of the horse to delete
+</ParamField>
+
+### Response
+
+<ResponseField name="mensaje" type="string">
+  Success message confirming the horse was deleted
+</ResponseField>
+
+### Response Example
+
+```json
+{
+  "mensaje": "Caballo con ID 1 eliminado correctamente"
+}
+```
+
+### Error Responses
+
+<ResponseField name="404" type="error">
+  Horse not found with the specified ID
+</ResponseField>
+
+---
+
+## Logical Deletion (Inactivate)
+
+<api api="DELETE /api/v1/caballos/{id}/inactivar" />
+
+Marks a horse as unavailable without permanently deleting it. This sets the `disponible` field to `false`.
+
+### Path Parameters
+
+<ParamField path="id" type="long" required>
+  The unique identifier of the horse to inactivate
+</ParamField>
+
+### Response
+
+<ResponseField name="mensaje" type="string">
+  Success message confirming the horse was marked as unavailable
+</ResponseField>
+
+### Response Example
+
+```json
+{
+  "mensaje": "Caballo con ID 1 marcado como no disponible"
+}
+```
+
+### Error Responses
+
+<ResponseField name="404" type="error">
+  Horse not found with the specified ID
+</ResponseField>
+
+---
+
+## Search Horses
+
+<api api="GET /api/v1/caballos/buscar" />
+
+Searches for horses based on optional filters. If no horses match the filters, returns all horses with an informational message.
+
+### Query Parameters
+
+<ParamField query="nombre" type="string">
+  Filter horses by name (partial match)
+</ParamField>
+
+<ParamField query="disponible" type="boolean">
+  Filter horses by availability status. Use `true` for available horses, `false` for unavailable horses.
+</ParamField>
+
+<ParamField query="tipo" type="enum">
+  Filter horses by type. Possible values: `ESCUELA`, `PRIVADO`
+</ParamField>
+
+### Response (with matches)
+
+<ResponseField name="horses" type="array">
+  Array of horse objects matching the search criteria
+  
+  <ResponseField name="id" type="long">
+    Unique identifier for the horse
+  </ResponseField>
+  
+  <ResponseField name="nombre" type="string">
+    Name of the horse
+  </ResponseField>
+  
+  <ResponseField name="disponible" type="boolean">
+    Indicates whether the horse is available
+  </ResponseField>
+  
+  <ResponseField name="tipo" type="enum">
+    Type of horse: `ESCUELA` or `PRIVADO`
+  </ResponseField>
+</ResponseField>
+
+### Response (no matches)
+
+<ResponseField name="mensaje" type="string">
+  Informational message indicating no matches were found
+</ResponseField>
+
+<ResponseField name="caballos" type="array">
+  Array containing all horses in the system
+</ResponseField>
+
+### Response Example (no matches)
+
+```json
+{
+  "mensaje": "No existen caballos con los filtros de búsqueda ingresados, se retorna el listado completo.",
+  "caballos": [
+    {
+      "id": 1,
+      "nombre": "Thunder",
+      "disponible": true,
+      "tipo": "ESCUELA"
+    }
+  ]
+}
+```

@@ -1,0 +1,143 @@
+---
+title: "Create Class"
+api: "POST /api/v1/clases"
+---
+
+Create a new riding class in the HRS system.
+
+## Create Class
+
+<api method="POST" endpoint="/api/v1/clases" />
+
+Creates a new riding class with the provided information.
+
+### Request Body
+
+<ParamField body="especialidad" type="Especialidad">
+Class specialty. Valid values:
+- `EQUINOTERAPIA` - Equine therapy
+- `EQUITACION` - Horse riding
+- `ADIESTRAMIENTO` - Training
+- `MONTA` - Mounting
+</ParamField>
+
+<ParamField body="dia" type="LocalDate" required>
+Class date in ISO-8601 format (YYYY-MM-DD). Must not be null.
+</ParamField>
+
+<ParamField body="hora" type="LocalTime" required>
+Class time in ISO-8601 format (HH:mm:ss). Must not be null.
+</ParamField>
+
+<ParamField body="duracion" type="Integer" required>
+Class duration in minutes. Minimum value: 30. Default: 30.
+</ParamField>
+
+<ParamField body="estado" type="Estado" required>
+Class state. Must not be null. Valid values:
+- `PROGRAMADA` - Scheduled
+- `INICIADA` - Started
+- `COMPLETADA` - Completed
+- `CANCELADA` - Cancelled
+- `ACA` - Absent with notice (Ausente Con Aviso)
+- `ASA` - Absent without notice (Ausente Sin Aviso)
+</ParamField>
+
+<ParamField body="observaciones" type="String">
+Optional notes or observations about the class. Maximum length: 50 characters.
+</ParamField>
+
+<ParamField body="instructorId" type="Long" required>
+The ID of the instructor teaching the class. Must not be null.
+</ParamField>
+
+<ParamField body="alumnoId" type="Long">
+The ID of the student taking the class. Can be null for trial classes that use `personaPruebaId` instead.
+</ParamField>
+
+<ParamField body="personaPruebaId" type="Long">
+The ID of the trial person taking the class. Used instead of `alumnoId` for trial classes.
+</ParamField>
+
+<ParamField body="caballoId" type="Long" required>
+The ID of the horse being used for the class. Must not be null and must be a positive number (minimum 1).
+</ParamField>
+
+<ParamField body="esPrueba" type="Boolean">
+Indicates whether this is a trial class. Default: false.
+
+For trial classes, use the dedicated `/api/v1/clases/prueba` endpoint instead.
+</ParamField>
+
+### Validation Rules
+
+<Note>
+The following validations are enforced by the service layer:
+
+1. **Date and Time Constraints**: The class must be scheduled according to business rules
+2. **Instructor Availability**: The instructor must not have conflicting classes at the same time
+3. **Student Availability**: The student (if specified) must not have conflicting classes
+4. **Horse Availability**: The horse must not be assigned to another class at the same time
+5. **Duration**: Minimum 30 minutes
+6. **Trial Classes**: If `esPrueba` is true, either `alumnoId` or `personaPruebaId` must be provided
+</Note>
+
+### Response
+
+<ResponseField name="mensaje" type="String">
+Success message containing the ID of the created class
+
+Example: "Clase creada correctamente con ID: 123"
+</ResponseField>
+
+### Status Codes
+
+- `201 Created` - Class successfully created
+- `400 Bad Request` - Invalid request body or validation errors
+- `404 Not Found` - Referenced instructor, student, or horse does not exist
+- `409 Conflict` - Scheduling conflict detected
+
+### Example Request
+
+```json
+{
+  "especialidad": "EQUITACION",
+  "dia": "2026-03-15",
+  "hora": "10:00:00",
+  "duracion": 60,
+  "estado": "PROGRAMADA",
+  "observaciones": "Clase de salto",
+  "instructorId": 5,
+  "alumnoId": 12,
+  "caballoId": 8,
+  "esPrueba": false
+}
+```
+
+### Example Response
+
+```json
+{
+  "mensaje": "Clase creada correctamente con ID: 42"
+}
+```
+
+### Example Trial Class Request
+
+```json
+{
+  "especialidad": "EQUINOTERAPIA",
+  "dia": "2026-03-20",
+  "hora": "14:00:00",
+  "duracion": 30,
+  "estado": "PROGRAMADA",
+  "instructorId": 3,
+  "personaPruebaId": 15,
+  "caballoId": 6,
+  "esPrueba": true
+}
+```
+
+<Tip>
+For creating trial classes, consider using the dedicated endpoint `POST /api/v1/clases/prueba` which automatically sets `esPrueba` to true.
+</Tip>

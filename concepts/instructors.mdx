@@ -1,0 +1,253 @@
+---
+title: Instructors
+description: Understanding the instructor model, calendar integration, and class management in the HRS Riding School API
+---
+
+## Overview
+
+Instructors are teaching staff members who conduct riding classes. The instructor model tracks personal information, active status, and calendar color assignments for visual scheduling.
+
+## Instructor Model Structure
+
+The `Instructor` entity extends the base `Persona` class and includes the following fields:
+
+### Personal Information (inherited from Persona)
+
+```java
+String dni              // National ID (unique)
+String nombre           // First name
+String apellido         // Last name
+LocalDate fechaNacimiento  // Birth date
+String telefono         // Phone number
+String email            // Email address (optional)
+```
+
+### Instructor-Specific Fields
+
+```java
+Long id                 // Unique identifier
+Boolean activo          // Active/inactive status
+String color            // Calendar color (7-character hex code)
+List<Clase> clases      // Classes taught by this instructor
+```
+
+## Calendar Color Assignment
+
+Each instructor is assigned a unique color for calendar visualization. The `color` field stores a 7-character hex color code.
+
+```json Example instructor with color
+{
+  "id": 1,
+  "nombre": "María",
+  "apellido": "González",
+  "color": "#FF5733",
+  "activo": true
+}
+```
+
+<Note>
+The color field is stored as a string with exactly 7 characters (including the `#` symbol). Example: `#FF5733`
+</Note>
+
+### Color Usage
+
+Colors help distinguish instructors in calendar views:
+
+<CardGroup cols={3}>
+  <Card title="Instructor A" icon="user" color="#FF5733">
+    Displays classes in red-orange
+  </Card>
+  
+  <Card title="Instructor B" icon="user" color="#3498DB">
+    Displays classes in blue
+  </Card>
+  
+  <Card title="Instructor C" icon="user" color="#27AE60">
+    Displays classes in green
+  </Card>
+</CardGroup>
+
+## Active/Inactive Status
+
+The `activo` boolean field controls whether an instructor can be assigned to new classes:
+
+- **`true`**: Instructor is active and available for scheduling
+- **`false`**: Instructor is inactive (on leave, retired, etc.)
+
+### Validation Rule
+
+<Warning>
+Only active instructors can be assigned to new classes. Attempting to create a class with an inactive instructor will throw a `BusinessException`.
+</Warning>
+
+```java Validation in ClaseServiceImpl
+private Instructor obtenerInstructorValido(Long id) {
+    Instructor instructor = instructorService.buscarInstructorPorId(id)
+        .orElseThrow(() -> new ResourceNotFoundException("Instructor", "ID", id));
+    
+    if (!instructor.isActivo()) {
+        throw new BusinessException("El instructor no está activo");
+    }
+    
+    return instructor;
+}
+```
+
+## Specialties
+
+While instructors don't have a dedicated specialty field in the model, they teach classes in various disciplines defined by the `Especialidad` enum:
+
+| Specialty | Description | Typical Focus |
+|-----------|-------------|---------------|
+| `EQUITACION` | General riding | Basic riding techniques |
+| `ADIESTRAMIENTO` | Dressage | Training and discipline |
+| `EQUINOTERAPIA` | Therapeutic riding | Special needs students |
+| `MONTA` | Instructor practice | Solo instructor sessions (no student) |
+
+<Info>
+The `MONTA` specialty is unique - it's for instructors to practice or train without a student assigned. These classes do not require an `alumnoId`.
+</Info>
+
+## Relationship with Classes
+
+Instructors have a one-to-many relationship with classes:
+
+```java Class assignment
+@OneToMany(mappedBy = "instructor", cascade = CascadeType.ALL, orphanRemoval = false)
+@JsonIgnore
+private List<Clase> clases = new ArrayList<>();
+```
+
+### Managing Class Assignments
+
+Two helper methods manage the bidirectional relationship:
+
+```java Add/remove classes
+public void agregarClase(Clase clase) {
+    clases.add(clase);
+    clase.setInstructor(this);
+}
+
+public void removerClase(Clase clase) {
+    clases.remove(clase);
+    clase.setInstructor(null);
+}
+```
+
+<Note>
+The `@JsonIgnore` annotation prevents infinite recursion during JSON serialization, as classes also reference their instructor.
+</Note>
+
+## Payment Calculation
+
+Instructors earn a base salary plus bonuses for classes taught. The `calcularPago()` method implements this logic:
+
+```java
+public double calcularPago() {
+    // Base monthly salary
+    double salarioBase = 2000.0;
+    
+    // Count classes taught this month
+    long clasesDelMes = clases.stream()
+        .filter(c -> c.getDia().getMonth() == LocalDate.now().getMonth()
+                && c.getDia().getYear() == LocalDate.now().getYear())
+        .count();
+    
+    // Bonus: $50 per class
+    double bonoPorClases = clasesDelMes * 50.0;
+    
+    return salarioBase + bonoPorClases;
+}
+```
+
+### Payment Examples
+
+<Steps>
+  <Step title="Base Salary">
+    Instructor with 0 classes this month: **$2,000**
+  </Step>
+  
+  <Step title="Light Schedule">
+    Instructor with 10 classes this month: **$2,000 + (10 × $50) = $2,500**
+  </Step>
+  
+  <Step title="Full Schedule">
+    Instructor with 40 classes this month: **$2,000 + (40 × $50) = $4,000**
+  </Step>
+</Steps>
+
+## Querying Instructor Classes
+
+The API provides several endpoints to retrieve classes by instructor:
+
+<CodeGroup>
+
+```bash Get all classes for an instructor
+curl -X GET "https://api.ridingschool.com/api/v1/clases/instructor/{id}"
+```
+
+```bash Get detailed class information
+curl -X GET "https://api.ridingschool.com/api/v1/clases/instructor/{id}/detalles"
+```
+
+```bash Count completed classes
+curl -X GET "https://api.ridingschool.com/api/v1/clases/instructor/{id}/completadas/contar"
+```
+
+</CodeGroup>
+
+### Service Methods
+
+The `ClaseService` provides these methods for instructor-related queries:
+
+```java
+List<Clase> buscarClasePorInstructor(Long instructor_id);
+
+List<ClaseResponseDto> buscarClasePorInstructorConDetalles(Long instructorId);
+
+long contarClasesCompletadasPorInstructor(Long instructorId);
+```
+
+## Validation Rules
+
+When working with instructors, the following rules apply:
+
+<AccordionGroup>
+  <Accordion title="DNI Uniqueness">
+    Each instructor must have a unique `dni`. The database enforces this with a unique index on the `dni` column.
+  </Accordion>
+  
+  <Accordion title="Color Format">
+    The `color` field must be exactly 7 characters long and should follow hex color format (e.g., `#FF5733`).
+  </Accordion>
+  
+  <Accordion title="Active Status for Scheduling">
+    Only instructors with `activo = true` can be assigned to new classes. The service layer validates this before creating classes.
+  </Accordion>
+  
+  <Accordion title="Required Fields">
+    All fields except `email` are required when creating an instructor.
+  </Accordion>
+</AccordionGroup>
+
+## Database Indexes
+
+The `instructores` table has optimized indexes for common queries:
+
+```sql
+CREATE INDEX idx_instructor_dni ON instructores (dni);  -- Unique
+CREATE INDEX idx_instructor_activo ON instructores (activo);
+```
+
+These indexes improve performance when:
+- Looking up instructors by DNI
+- Filtering active/inactive instructors
+
+## Related Endpoints
+
+- `GET /api/v1/instructores` - List all instructors
+- `POST /api/v1/instructores` - Create new instructor
+- `GET /api/v1/instructores/{id}` - Get instructor details
+- `PUT /api/v1/instructores/{id}` - Update instructor
+- `DELETE /api/v1/instructores/{id}` - Delete instructor
+- `GET /api/v1/clases/instructor/{id}` - Get classes for instructor

@@ -1,0 +1,97 @@
+---
+title: Calendar Overview
+description: Manage and organize riding school class schedules with calendar operations
+---
+
+The Calendar API provides bulk operations for managing class schedules across weeks and date ranges. These endpoints are designed to help administrators efficiently organize the riding school's weekly schedule.
+
+## Base URL
+
+All calendar endpoints are prefixed with:
+
+```
+/api/v1/calendario
+```
+
+## Key Concepts
+
+### Time-Based Operations
+
+The calendar system operates on:
+- **Week-based copying**: Duplicate entire weeks of classes to future dates
+- **Date range deletion**: Remove classes across specific date ranges
+- **Time slot filtering**: Optional filtering by specific hours (e.g., 9:00 - 18:30)
+
+### Operating Hours
+
+While the system supports flexible scheduling, typical operating hours are:
+- **Start**: 9:00 AM
+- **End**: 6:30 PM (18:30)
+- **Time slots**: 30-minute intervals
+
+### Use Cases
+
+#### 1. Copy Weekly Schedule
+
+Duplicate a week's worth of classes to a future week:
+- Copy classes from one Monday to another Monday
+- Specify number of weeks to copy
+- Maintains all class details (instructor, student, horse, specialty)
+
+#### 2. Bulk Delete Operations
+
+**Delete by Date Range**  
+Remove all classes between two dates (useful for holiday periods or schedule resets).
+
+**Delete by Time Range**  
+Remove classes on a specific date within certain hours (e.g., cancel afternoon classes on a specific day).
+
+### Viewing Calendar Data
+
+While the calendar endpoints focus on bulk operations, you can view scheduled classes using the [Class endpoints](/api/classes/list):
+
+- **By Date**: `GET /api/v1/clases/dia/{dia}/detalles` - View all classes on a specific day
+- **By Instructor**: `GET /api/v1/clases/instructor/{instructorId}/detalles` - View instructor's schedule
+- **By Student**: `GET /api/v1/clases/alumno/{alumnoId}/detalles` - View student's schedule
+- **Search with Filters**: `GET /api/v1/clases/buscar` - Filter by date, time, instructor, student, or horse
+
+## Data Transfer Object
+
+All calendar operations use the `CalendarioDto` object with the following fields:
+
+<ResponseField name="diaInicioOrigen" type="date" required>
+Source start date in ISO 8601 format (YYYY-MM-DD). For copy operations, this is the week to copy from. For delete operations, this is the range start.
+</ResponseField>
+
+<ResponseField name="diaInicioDestino" type="date" required>
+Destination/end date in ISO 8601 format (YYYY-MM-DD). For copy operations, this is the week to copy to. For delete operations, this is the range end.
+</ResponseField>
+
+<ResponseField name="cantidadSemanas" type="integer">
+Number of weeks to copy (must be greater than 0). Only used in copy operations.
+</ResponseField>
+
+<ResponseField name="horaInicio" type="time">
+Optional start time in ISO 8601 format (HH:MM:SS). When specified with `horaFin`, limits deletion to a specific time range.
+</ResponseField>
+
+<ResponseField name="horaFin" type="time">
+Optional end time in ISO 8601 format (HH:MM:SS). Must be after `horaInicio` when specified.
+</ResponseField>
+
+### Validation Rules
+
+- Source and destination dates cannot be the same
+- When time range is specified, start time must be before end time
+- Week count must be a positive integer for copy operations
+- All required dates must be in valid ISO 8601 format
+
+## Next Steps
+
+<Card title="Calendar Operations" icon="calendar" href="/api/calendar/operations">
+  Explore bulk copy and delete operations for class schedules
+</Card>
+
+<Card title="Class Operations" icon="book-open" href="/api/classes/list">
+  View individual class management and filtering endpoints
+</Card>

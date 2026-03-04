@@ -1,0 +1,68 @@
+---
+title: "Update Horse"
+api: "PUT /api/v1/caballos/{id}"
+---
+
+Updates an existing horse's information in the riding school system.
+
+### Path Parameters
+
+<ParamField path="id" type="long" required>
+  The unique identifier of the horse to update
+</ParamField>
+
+### Request Body
+
+<ParamField body="nombre" type="string" required>
+  Name of the horse. Must be between 1 and 50 characters.
+</ParamField>
+
+<ParamField body="disponible" type="boolean" required>
+  Indicates whether the horse is available for classes. Set to `true` for available, `false` for unavailable.
+</ParamField>
+
+<ParamField body="tipo" type="enum" required>
+  Type of horse. Must be one of:
+  - `ESCUELA` - School horse (available for general lessons)
+  - `PRIVADO` - Private horse (owned by specific students)
+</ParamField>
+
+### Request Example
+
+```json
+{
+  "nombre": "Thunder",
+  "disponible": false,
+  "tipo": "ESCUELA"
+}
+```
+
+### Response
+
+<ResponseField name="mensaje" type="string">
+  Success message confirming the horse was updated
+</ResponseField>
+
+### Response Example
+
+```json
+{
+  "mensaje": "Caballo con ID 1 actualizado correctamente"
+}
+```
+
+### Validation Rules
+
+- `nombre`: Cannot be blank, must be 1-50 characters
+- `disponible`: Cannot be null, must be a boolean value
+- `tipo`: Cannot be null, must be either `ESCUELA` or `PRIVADO`
+
+### Error Responses
+
+<ResponseField name="400" type="error">
+  Invalid request body or validation error
+</ResponseField>
+
+<ResponseField name="404" type="error">
+  Horse not found with the specified ID
+</ResponseField>

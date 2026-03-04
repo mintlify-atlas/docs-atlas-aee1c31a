@@ -1,0 +1,76 @@
+---
+title: "List Horses"
+api: "GET /api/v1/caballos"
+---
+
+## List All Horses
+
+Retrieves a list of all horses in the riding school system.
+
+### Response
+
+<ResponseField name="horses" type="array">
+  Array of horse objects
+  
+  <ResponseField name="id" type="long">
+    Unique identifier for the horse
+  </ResponseField>
+  
+  <ResponseField name="nombre" type="string">
+    Name of the horse (1-50 characters)
+  </ResponseField>
+  
+  <ResponseField name="disponible" type="boolean">
+    Indicates whether the horse is available for classes
+  </ResponseField>
+  
+  <ResponseField name="tipo" type="enum">
+    Type of horse. Possible values: `ESCUELA` (school horse), `PRIVADO` (private horse)
+  </ResponseField>
+  
+  <ResponseField name="propietarios" type="array">
+    List of students who own this horse (only applicable for private horses)
+  </ResponseField>
+</ResponseField>
+
+---
+
+## Get Horse by ID
+
+<api api="GET /api/v1/caballos/{id}" />
+
+Retrieves detailed information about a specific horse, including associated students.
+
+### Path Parameters
+
+<ParamField path="id" type="long" required>
+  The unique identifier of the horse to retrieve
+</ParamField>
+
+### Response
+
+<ResponseField name="id" type="long">
+  Unique identifier for the horse
+</ResponseField>
+
+<ResponseField name="nombre" type="string">
+  Name of the horse
+</ResponseField>
+
+<ResponseField name="disponible" type="boolean">
+  Indicates whether the horse is available for classes
+</ResponseField>
+
+<ResponseField name="tipo" type="enum">
+  Type of horse. Possible values: `ESCUELA`, `PRIVADO`
+</ResponseField>
+
+<ResponseField name="propietarios" type="array">
+  List of student objects who own this horse
+</ResponseField>
+
+### Error Responses
+
+<ResponseField name="404" type="error">
+  Horse not found with the specified ID
+</ResponseField>

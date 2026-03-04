@@ -1,0 +1,176 @@
+---
+title: "Search Students"
+api: "GET /api/v1/alumnos/buscar"
+---
+
+## Search Students with Filters
+
+Searches for students using multiple optional criteria. If no students match the filters, returns all students with an informational message.
+
+### Query Parameters
+
+All parameters are optional. You can combine multiple parameters to refine your search.
+
+<ParamField query="nombre" type="string">
+  Filter by student's first name (partial match supported)
+</ParamField>
+
+<ParamField query="apellido" type="string">
+  Filter by student's last name (partial match supported)
+</ParamField>
+
+<ParamField query="activo" type="boolean">
+  Filter by active status:
+  - `true`: Only active students
+  - `false`: Only inactive/trial students
+</ParamField>
+
+<ParamField query="propietario" type="boolean">
+  Filter by horse ownership:
+  - `true`: Only students who own their horses
+  - `false`: Only students who don't own horses
+</ParamField>
+
+<ParamField query="fechaInscripcion" type="date">
+  Filter by enrollment date (exact match, ISO 8601 format: YYYY-MM-DD)
+</ParamField>
+
+<ParamField query="fechaNacimiento" type="date">
+  Filter by date of birth (exact match, ISO 8601 format: YYYY-MM-DD)
+</ParamField>
+
+## Response
+
+### When Results Are Found
+
+Returns an array of `Alumno` objects matching the search criteria.
+
+<ResponseExample>
+```json
+[
+  {
+    "id": 1,
+    "dni": "12345678",
+    "nombre": "Juan",
+    "apellido": "Pérez",
+    "fechaNacimiento": "1995-03-15",
+    "telefono": "+5491112345678",
+    "email": "juan.perez@example.com",
+    "fechaInscripcion": "2024-01-10",
+    "cantidadClases": 8,
+    "activo": true,
+    "propietario": false,
+    "tipoPension": "SIN_CABALLO",
+    "cuotaPension": null,
+    "caballoPropio": null
+  }
+]
+```
+</ResponseExample>
+
+### When No Results Are Found
+
+Returns all students with an informational message.
+
+<ResponseField name="mensaje" type="string">
+  Message: `"No existen alumnos con los filtros de búsqueda ingresados, se retorna el listado completo."`
+</ResponseField>
+
+<ResponseField name="alumnos" type="array">
+  Array containing all students in the system
+</ResponseField>
+
+<ResponseExample>
+```json
+{
+  "mensaje": "No existen alumnos con los filtros de búsqueda ingresados, se retorna el listado completo.",
+  "alumnos": [
+    {
+      "id": 1,
+      "dni": "12345678",
+      "nombre": "Juan",
+      "apellido": "Pérez",
+      "fechaNacimiento": "1995-03-15",
+      "telefono": "+5491112345678",
+      "email": "juan.perez@example.com",
+      "fechaInscripcion": "2024-01-10",
+      "cantidadClases": 8,
+      "activo": true,
+      "propietario": false,
+      "tipoPension": "SIN_CABALLO",
+      "cuotaPension": null,
+      "caballoPropio": null
+    }
+  ]
+}
+```
+</ResponseExample>
+
+## Example Requests
+
+### Search by Name
+```
+GET /api/v1/alumnos/buscar?nombre=Juan
+```
+
+### Search Active Students
+```
+GET /api/v1/alumnos/buscar?activo=true
+```
+
+### Search Horse Owners Enrolled on a Specific Date
+```
+GET /api/v1/alumnos/buscar?propietario=true&fechaInscripcion=2024-01-10
+```
+
+### Search by Last Name and Active Status
+```
+GET /api/v1/alumnos/buscar?apellido=Pérez&activo=true
+```
+
+---
+
+## Count Completed Classes
+
+<api>GET /api/v1/alumnos/{id}/clases/completadas/count</api>
+
+Retrieves the number of completed classes for a specific student.
+
+### Path Parameters
+
+<ParamField path="id" type="long" required>
+  The unique identifier of the student
+</ParamField>
+
+### Response
+
+<ResponseField name="id" type="long">
+  The student's ID
+</ResponseField>
+
+<ResponseField name="clasesCompletadas" type="long">
+  Number of classes the student has completed
+</ResponseField>
+
+<ResponseExample>
+```json
+{
+  "id": 1,
+  "clasesCompletadas": 15
+}
+```
+</ResponseExample>
+
+## Business Logic
+
+This endpoint counts all classes that the student has completed. This is useful for:
+- Tracking student progress
+- Determining remaining classes in their plan
+- Billing and payment calculations
+- Performance analytics
+
+## Error Responses
+
+<ResponseField name="404" type="object">
+  Not Found - Student with the given ID does not exist
+</ResponseField>

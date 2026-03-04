@@ -1,0 +1,181 @@
+---
+title: "Delete and Search Classes"
+api: "DELETE /api/v1/clases/{id}"
+---
+
+Endpoints for deleting classes and performing advanced searches.
+
+## Delete Class
+
+<api method="DELETE" endpoint="/api/v1/clases/{id}" />
+
+Permanently deletes a class from the system (physical deletion, not soft delete).
+
+### Path Parameters
+
+<ParamField path="id" type="Long" required>
+The unique identifier of the class to delete
+</ParamField>
+
+### Response
+
+<ResponseField name="mensaje" type="String">
+Success message confirming deletion
+
+Example: "Clase con ID 42 eliminada correctamente"
+</ResponseField>
+
+### Status Codes
+
+- `200 OK` - Class successfully deleted
+- `404 Not Found` - Class with specified ID does not exist
+
+### Example Response
+
+```json
+{
+  "mensaje": "Clase con ID 42 eliminada correctamente"
+}
+```
+
+<Warning>
+This operation performs a physical deletion and cannot be undone. The class record is permanently removed from the database. Consider using state management (CANCELADA) instead of deletion for record-keeping purposes.
+</Warning>
+
+---
+
+## Search Classes
+
+<api method="GET" endpoint="/api/v1/clases/buscar" />
+
+Searches for classes using multiple optional filter criteria. If no results match the filters, returns all classes with an informational message.
+
+### Query Parameters
+
+All parameters are optional. Provide any combination to filter results.
+
+<ParamField query="dia" type="LocalDate">
+Filter by class date (ISO-8601 format: YYYY-MM-DD)
+</ParamField>
+
+<ParamField query="hora" type="LocalTime">
+Filter by class time (ISO-8601 format: HH:mm:ss)
+</ParamField>
+
+<ParamField query="alumno" type="Long">
+Filter by student ID
+</ParamField>
+
+<ParamField query="instructor" type="Long">
+Filter by instructor ID
+</ParamField>
+
+<ParamField query="caballo" type="Long">
+Filter by horse ID
+</ParamField>
+
+<ParamField query="especialidad" type="Especialidad">
+Filter by specialty. Valid values:
+- `EQUINOTERAPIA`
+- `EQUITACION`
+- `ADIESTRAMIENTO`
+- `MONTA`
+</ParamField>
+
+<ParamField query="estado" type="Estado">
+Filter by class state. Valid values:
+- `PROGRAMADA`
+- `INICIADA`
+- `COMPLETADA`
+- `CANCELADA`
+- `ACA`
+- `ASA`
+</ParamField>
+
+### Response - Matches Found
+
+When classes match the search criteria, returns an array of `Clase` objects.
+
+### Response - No Matches
+
+When no classes match the criteria, returns all classes with a message:
+
+```json
+{
+  "mensaje": "No existen clases con los filtros de búsqueda ingresados, se retorna el listado completo.",
+  "clases": [
+    // Array of all Clase objects
+  ]
+}
+```
+
+### Status Codes
+
+- `200 OK` - Returns matching classes or all classes if no matches
+
+### Example Requests
+
+**Search by date and instructor:**
+```
+GET /api/v1/clases/buscar?dia=2026-03-15&instructor=5
+```
+
+**Search by state and specialty:**
+```
+GET /api/v1/clases/buscar?estado=COMPLETADA&especialidad=EQUITACION
+```
+
+**Search by student and date range (using date):**
+```
+GET /api/v1/clases/buscar?alumno=12&dia=2026-03-15
+```
+
+### Example Response - Matches Found
+
+```json
+[
+  {
+    "id": 42,
+    "especialidad": "EQUITACION",
+    "dia": "2026-03-15",
+    "hora": "10:00:00",
+    "duracion": 60,
+    "estado": "PROGRAMADA",
+    "observaciones": "Clase de salto",
+    "esPrueba": false,
+    "diaHoraCompleto": "2026-03-15T10:00:00"
+  }
+]
+```
+
+### Example Response - No Matches
+
+```json
+{
+  "mensaje": "No existen clases con los filtros de búsqueda ingresados, se retorna el listado completo.",
+  "clases": [
+    {
+      "id": 1,
+      "especialidad": "EQUINOTERAPIA",
+      "dia": "2026-03-10",
+      "hora": "09:00:00",
+      "duracion": 30,
+      "estado": "COMPLETADA",
+      "esPrueba": false
+    },
+    {
+      "id": 2,
+      "especialidad": "MONTA",
+      "dia": "2026-03-11",
+      "hora": "14:00:00",
+      "duracion": 45,
+      "estado": "PROGRAMADA",
+      "esPrueba": true
+    }
+  ]
+}
+```
+
+<Note>
+This endpoint returns basic `Clase` objects without detailed relationship information. For searches requiring instructor/student/horse details, use the specific detail endpoints like `/api/v1/clases/instructor/{id}/detalles` or `/api/v1/clases/estado/{estado}/detalles`.
+</Note>

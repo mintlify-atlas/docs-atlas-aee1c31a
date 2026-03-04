@@ -1,0 +1,186 @@
+---
+title: "Create Instructor"
+api: "POST /api/v1/instructores"
+---
+
+Creates a new instructor in the riding school system.
+
+## Request Body
+
+<ParamField body="dni" type="string" required>
+  National identification number
+  
+  **Validation:**
+  - Must be between 7-9 digits
+  - Only numeric characters allowed
+  - Cannot be blank
+</ParamField>
+
+<ParamField body="nombre" type="string" required>
+  First name of the instructor
+  
+  **Validation:**
+  - Must be between 2-50 characters
+  - Cannot be blank
+</ParamField>
+
+<ParamField body="apellido" type="string" required>
+  Last name of the instructor
+  
+  **Validation:**
+  - Must be between 2-50 characters
+  - Cannot be blank
+</ParamField>
+
+<ParamField body="fechaNacimiento" type="date" required>
+  Birth date in ISO 8601 format (YYYY-MM-DD)
+  
+  **Validation:**
+  - Must be a past date
+  - Cannot be null
+</ParamField>
+
+<ParamField body="telefono" type="string" required>
+  Phone number
+  
+  **Validation:**
+  - Must be between 10-15 characters
+  - Only numeric characters allowed, optionally prefixed with '+'
+  - Cannot be blank
+</ParamField>
+
+<ParamField body="email" type="string">
+  Email address
+  
+  **Validation:**
+  - Must be a valid email format
+</ParamField>
+
+<ParamField body="activo" type="boolean" required>
+  Whether the instructor is active
+  
+  **Validation:**
+  - Cannot be null
+  
+  Set to `true` for active instructors, `false` for inactive ones.
+</ParamField>
+
+<ParamField body="color" type="string" required>
+  Color code assigned to the instructor for visual identification (hex format)
+  
+  **Validation:**
+  - Cannot be null or empty
+  - Maximum 7 characters (e.g., #FF5733)
+  
+  This color is used to visually distinguish instructors in the system interface and scheduling.
+</ParamField>
+
+## Response
+
+<ResponseField name="mensaje" type="string">
+  Success message confirming the instructor creation
+</ResponseField>
+
+<RequestExample>
+```bash cURL
+curl -X POST "https://api.ridingschool.example/api/v1/instructores" \
+  -H "Content-Type: application/json" \
+  -d '{
+    "dni": "12345678",
+    "nombre": "Juan",
+    "apellido": "García",
+    "fechaNacimiento": "1985-03-15",
+    "telefono": "+34612345678",
+    "email": "juan.garcia@example.com",
+    "activo": true,
+    "color": "#FF5733"
+  }'
+```
+
+```javascript JavaScript
+const response = await fetch('https://api.ridingschool.example/api/v1/instructores', {
+  method: 'POST',
+  headers: {
+    'Content-Type': 'application/json'
+  },
+  body: JSON.stringify({
+    dni: '12345678',
+    nombre: 'Juan',
+    apellido: 'García',
+    fechaNacimiento: '1985-03-15',
+    telefono: '+34612345678',
+    email: 'juan.garcia@example.com',
+    activo: true,
+    color: '#FF5733'
+  })
+});
+
+const data = await response.json();
+```
+
+```python Python
+import requests
+
+url = 'https://api.ridingschool.example/api/v1/instructores'
+data = {
+    'dni': '12345678',
+    'nombre': 'Juan',
+    'apellido': 'García',
+    'fechaNacimiento': '1985-03-15',
+    'telefono': '+34612345678',
+    'email': 'juan.garcia@example.com',
+    'activo': True,
+    'color': '#FF5733'
+}
+
+response = requests.post(url, json=data)
+result = response.json()
+```
+</RequestExample>
+
+<ResponseExample>
+```json 201
+{
+  "mensaje": "Instructor Juan García creado correctamente"
+}
+```
+
+```json 400
+{
+  "timestamp": "2024-03-15T10:30:00",
+  "status": 400,
+  "error": "Bad Request",
+  "message": "Validation failed",
+  "errors": [
+    {
+      "field": "dni",
+      "message": "El DNI debe tener entre 7 y 9 dígitos"
+    },
+    {
+      "field": "fechaNacimiento",
+      "message": "La fecha de nacimiento debe ser una fecha pasada"
+    },
+    {
+      "field": "color",
+      "message": "El color del instructor no puede estar vacío"
+    }
+  ],
+  "path": "/api/v1/instructores"
+}
+```
+</ResponseExample>
+
+## Validation Rules
+
+All fields are validated according to the following rules:
+
+| Field | Type | Required | Constraints |
+|-------|------|----------|-------------|
+| dni | string | Yes | 7-9 numeric digits |
+| nombre | string | Yes | 2-50 characters |
+| apellido | string | Yes | 2-50 characters |
+| fechaNacimiento | date | Yes | Must be in the past |
+| telefono | string | Yes | 10-15 characters, numeric with optional + prefix |
+| email | string | No | Valid email format |
+| activo | boolean | Yes | true or false |
+| color | string | Yes | Max 7 characters (hex color code) |

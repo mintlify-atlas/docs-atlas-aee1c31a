@@ -1,0 +1,270 @@
+---
+title: Horses
+description: Understanding the horse model, ownership types, and availability management in the HRS Riding School API
+---
+
+## Overview
+
+Horses (Caballos) are the animals used for riding classes. The system tracks both school-owned horses and privately-owned horses belonging to students.
+
+## Horse Model Structure
+
+The `Caballo` entity includes the following fields:
+
+```java
+Long id                 // Unique identifier
+String nombre           // Horse name
+Boolean disponible      // Availability status
+Tipo tipo               // Horse ownership type (ESCUELA or PRIVADO)
+List<Alumno> propietarios  // Students who own/reserve this horse
+List<Clase> clases      // Classes assigned to this horse
+```
+
+## Horse Types
+
+The `Tipo` enum defines two categories of horses:
+
+### ESCUELA (School Horse)
+
+Horses owned by the riding school, available for general use.
+
+```json School horse example
+{
+  "id": 1,
+  "nombre": "Thunder",
+  "tipo": "ESCUELA",
+  "disponible": true
+}
+```
+
+<Info>
+School horses can be:
+- Assigned to students without reservation (`SIN_CABALLO`)
+- Reserved by specific students (`RESERVA_ESCUELA`)
+</Info>
+
+### PRIVADO (Private Horse)
+
+Horses owned by individual students who pay pension fees.
+
+```json Private horse example
+{
+  "id": 5,
+  "nombre": "Bella",
+  "tipo": "PRIVADO",
+  "disponible": true
+}
+```
+
+<Warning>
+Private horses should only be assigned to their owner. The system tracks ownership through the `Alumno.caballoPropio` relationship.
+</Warning>
+
+## Availability Management
+
+The `disponible` boolean field controls whether a horse can be assigned to new classes:
+
+- **`true`**: Horse is available and can be scheduled for classes
+- **`false`**: Horse is unavailable (injured, resting, etc.)
+
+### Validation Rule
+
+The service layer enforces availability when creating classes:
+
+```java Availability validation
+private Caballo obtenerCaballoValido(Long id) {
+    Caballo caballo = caballoService.buscarCaballoPorId(id)
+        .orElseThrow(() -> new ResourceNotFoundException("Caballo", "ID", id));
+    
+    if (!caballo.isDisponible()) {
+        throw new BusinessException("El caballo no está disponible");
+    }
+    
+    return caballo;
+}
+```
+
+<Note>
+Attempting to assign an unavailable horse to a class will throw a `BusinessException`.
+</Note>
+
+## Ownership and Reservations
+
+Horses can be associated with students through the `propietarios` relationship:
+
+```java Owner relationship
+@OneToMany(mappedBy = "caballoPropio", fetch = FetchType.LAZY)
+private List<Alumno> propietarios = new ArrayList<>();
+```
+
+This relationship supports:
+
+<CardGroup cols={2}>
+  <Card title="Private Ownership" icon="star">
+    A student owns the horse (`tipo = PRIVADO`)
+    
+    Student pays pension fees
+  </Card>
+  
+  <Card title="School Reservation" icon="bookmark">
+    A student reserves a school horse (`tipo = ESCUELA`)
+    
+    Student pays reservation fee
+  </Card>
+</CardGroup>
+
+### Linking Students to Horses
+
+The relationship is established through the student's boarding configuration:
+
+<Tabs>
+  <Tab title="Private Horse">
+    ```json Student with private horse
+    {
+      "alumnoId": 10,
+      "tipoPension": "CABALLO_PROPIO",
+      "cuotaPension": "ENTERA",
+      "caballoId": 5  // References a PRIVADO horse
+    }
+    ```
+  </Tab>
+  
+  <Tab title="Reserved School Horse">
+    ```json Student with school reservation
+    {
+      "alumnoId": 12,
+      "tipoPension": "RESERVA_ESCUELA",
+      "cuotaPension": null,
+      "caballoId": 3  // References an ESCUELA horse
+    }
+    ```
+  </Tab>
+  
+  <Tab title="No Assignment">
+    ```json Student without dedicated horse
+    {
+      "alumnoId": 15,
+      "tipoPension": "SIN_CABALLO",
+      "cuotaPension": null,
+      "caballoId": null  // Any available school horse
+    }
+    ```
+  </Tab>
+</Tabs>
+
+## Relationship with Classes
+
+Horses have a one-to-many relationship with classes:
+
+```java Class assignment
+@OneToMany(mappedBy = "caballo", cascade = CascadeType.ALL, orphanRemoval = false)
+@JsonIgnore
+private List<Clase> clases = new ArrayList<>();
+```
+
+### Managing Class Assignments
+
+Two helper methods manage the relationship:
+
+```java
+public void agregarClase(Clase clase) {
+    clases.add(clase);
+    clase.setCaballo(this);
+}
+
+public void removerClase(Clase clase) {
+    clases.remove(clase);
+    clase.setCaballo(null);
+}
+```
+
+### Scheduling Conflicts
+
+The system prevents double-booking horses. When creating or updating a class, it validates:
+
+```java Conflict detection
+if (claseRepository.existsConflictoCaballo(id, dia, hora, caballoId)) {
+    throw new BusinessException(
+        "El caballo ya está asignado a una clase en esa hora");
+}
+```
+
+<Warning>
+Each horse can only be assigned to one class at any given time. Attempting to double-book will result in a validation error.
+</Warning>
+
+## Querying Horse Data
+
+The API provides several methods to retrieve horse-related information:
+
+<CodeGroup>
+
+```bash Get all horses
+curl -X GET "https://api.ridingschool.com/api/v1/caballos"
+```
+
+```bash Get classes for a horse
+curl -X GET "https://api.ridingschool.com/api/v1/clases/caballo/{id}"
+```
+
+```bash Count completed classes
+curl -X GET "https://api.ridingschool.com/api/v1/clases/caballo/{id}/completadas/contar"
+```
+
+</CodeGroup>
+
+### Service Methods
+
+The `ClaseService` provides these horse-related queries:
+
+```java
+List<Clase> buscarClasePorCaballo(Long caballo_id);
+
+List<ClaseResponseDto> buscarClasePorCaballoConDetalles(Long caballoId);
+
+long contarClasesCompletadasPorCaballo(Long caballoId);
+```
+
+## Use Cases
+
+<AccordionGroup>
+  <Accordion title="School Horse Pool">
+    School horses (`tipo = ESCUELA`) with no specific reservations are available for any student with `tipoPension = SIN_CABALLO`. The instructor assigns an appropriate horse at class time.
+  </Accordion>
+  
+  <Accordion title="Reserved School Horse">
+    A student can reserve a specific school horse for consistency. They pay a reservation fee and always ride the same horse. The student's `caballoPropio` field references the horse.
+  </Accordion>
+  
+  <Accordion title="Private Horse Boarding">
+    Students who own horses can board them at the school. The horse is marked as `tipo = PRIVADO`, and the student pays pension based on their `cuotaPension` tier (ENTERA, MEDIA, or TERCIO).
+  </Accordion>
+  
+  <Accordion title="Temporary Unavailability">
+    If a horse is injured or needs rest, set `disponible = false`. This prevents the horse from being assigned to new classes while preserving existing data.
+  </Accordion>
+</AccordionGroup>
+
+## Database Indexes
+
+The `caballos` table has optimized indexes:
+
+```sql
+CREATE INDEX idx_caballo_nombre ON caballos (nombre);
+CREATE INDEX idx_caballo_disponible ON caballos (disponible);
+CREATE INDEX idx_caballo_tipo ON caballos (tipoCaballo);
+```
+
+These improve performance when:
+- Searching horses by name
+- Filtering available horses
+- Querying by horse type (school vs. private)
+
+## Related Endpoints
+
+- `GET /api/v1/caballos` - List all horses
+- `POST /api/v1/caballos` - Create new horse
+- `GET /api/v1/caballos/{id}` - Get horse details
+- `PUT /api/v1/caballos/{id}` - Update horse
+- `DELETE /api/v1/caballos/{id}` - Delete horse
+- `GET /api/v1/clases/caballo/{id}` - Get classes for horse

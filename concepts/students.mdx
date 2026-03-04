@@ -1,0 +1,244 @@
+---
+title: Students
+description: Understanding the student model, enrollment plans, and boarding options in the HRS Riding School API
+---
+
+## Overview
+
+Students (Alumnos) represent individuals enrolled in riding classes at the school. The student model tracks personal information, enrollment details, class packages, and horse boarding arrangements.
+
+## Student Model Structure
+
+The `Alumno` entity extends the base `Persona` class and includes the following key fields:
+
+### Personal Information (inherited from Persona)
+
+```java
+String dni              // National ID (unique)
+String nombre           // First name
+String apellido         // Last name
+LocalDate fechaNacimiento  // Birth date
+String telefono         // Phone number
+String email            // Email address (optional)
+```
+
+### Student-Specific Fields
+
+```java
+Long id                 // Unique identifier
+LocalDate fechaInscripcion  // Enrollment date
+Integer cantidadClases  // Number of classes in monthly plan (4, 8, 12, or 16)
+Boolean activo          // Active/inactive status
+Boolean propietario     // Whether student owns a horse
+Caballo caballoPropio   // Reference to assigned horse (if applicable)
+TipoPension tipoPension // Horse boarding type
+CuotaPension cuotaPension  // Pension quota (if applicable)
+```
+
+## Enrollment Plans
+
+Students can subscribe to one of four monthly class packages. The available options are defined in `Constantes.CANTIDAD_CLASES`:
+
+<CardGroup cols={2}>
+  <Card title="Basic Plan" icon="star">
+    **4 classes** per month
+    
+    Base rate: 1.0x multiplier
+  </Card>
+  
+  <Card title="Standard Plan" icon="stars">
+    **8 classes** per month
+    
+    Base rate: 1.5x multiplier
+  </Card>
+  
+  <Card title="Advanced Plan" icon="sparkles">
+    **12 classes** per month
+    
+    Base rate: 2.0x multiplier
+  </Card>
+  
+  <Card title="Premium Plan" icon="trophy">
+    **16 classes** per month
+    
+    Base rate: 2.5x multiplier
+  </Card>
+</CardGroup>
+
+<Note>
+Only these four values (4, 8, 12, 16) are valid for `cantidadClases`. Other values will trigger a validation error.
+</Note>
+
+## Horse Boarding Types
+
+The `TipoPension` enum defines three boarding arrangements:
+
+### SIN_CABALLO
+
+Student is assigned a school horse without additional cost.
+
+```java
+tipoPension: TipoPension.SIN_CABALLO
+cuotaPension: null  // Not applicable
+caballoId: null     // Not applicable
+```
+
+<Info>
+This is the default option and does not require pension payments.
+</Info>
+
+### RESERVA_ESCUELA
+
+Student reserves a specific school horse for all their classes.
+
+```java
+tipoPension: TipoPension.RESERVA_ESCUELA
+cuotaPension: null  // Reservation fee applies instead
+caballoId: required // Must specify which school horse to reserve
+```
+
+<Warning>
+When using `RESERVA_ESCUELA`, a `caballoId` must be provided, but `cuotaPension` must be null.
+</Warning>
+
+### CABALLO_PROPIO
+
+Student brings their own horse and pays for boarding/pension.
+
+```java
+tipoPension: TipoPension.CABALLO_PROPIO
+cuotaPension: required  // Must specify pension tier (ENTERA, MEDIA, or TERCIO)
+caballoId: required     // Reference to the private horse
+```
+
+## Pension Tiers
+
+When `tipoPension` is `CABALLO_PROPIO`, the student must select a pension tier from the `CuotaPension` enum:
+
+| Tier | Description | Cost Calculation |
+|------|-------------|------------------|
+| `ENTERA` | Full pension | Base pension cost (500.0) |
+| `MEDIA` | Half pension | Base pension / 2 |
+| `TERCIO` | Third pension | Base pension / 3 |
+
+<Note>
+`cuotaPension` is only applicable when `tipoPension = CABALLO_PROPIO`. It must be null for other boarding types.
+</Note>
+
+## Active/Inactive States
+
+The `activo` field controls student status:
+
+- **`true`**: Student is enrolled and can participate in regular classes
+- **`false`**: Student is inactive (used for trial prospects or suspended accounts)
+
+### State Transitions
+
+<Steps>
+  <Step title="Trial Student">
+    New prospects start as inactive (`activo = false`) with `cantidadClases = 0`
+  </Step>
+  
+  <Step title="Enrollment">
+    After completing a trial class, they can be converted to active status using the conversion endpoint
+  </Step>
+  
+  <Step title="Suspension">
+    Active students can be temporarily deactivated using `DELETE /api/v1/alumnos/{id}/temp`
+  </Step>
+</Steps>
+
+## Payment Calculation Logic
+
+The `calcularPago()` method computes monthly fees based on class plan and pension:
+
+```java
+public double calcularPago() {
+    double cuotaBase = 1000.0;
+    
+    double multiplicador = switch (cantidadClases) {
+        case 4  -> 1.0;
+        case 8  -> 1.5;
+        case 12 -> 2.0;
+        case 16 -> 2.5;
+        default -> 1.0;
+    };
+    
+    double pension = 0.0;
+    if (tipoPension == TipoPension.CABALLO_PROPIO && cuotaPension != null) {
+        double pensionBase = 500.0;
+        pension = switch (cuotaPension) {
+            case ENTERA -> pensionBase;
+            case MEDIA  -> pensionBase / 2;
+            case TERCIO -> pensionBase / 3;
+        };
+    }
+    
+    return (cuotaBase * multiplicador) + pension;
+}
+```
+
+### Example Calculations
+
+<CodeGroup>
+
+```json Example 1: Basic plan, no horse
+{
+  "cantidadClases": 4,
+  "tipoPension": "SIN_CABALLO"
+}
+// Payment: 1000.0 * 1.0 + 0 = 1000.0
+```
+
+```json Example 2: Standard plan, school reservation
+{
+  "cantidadClases": 8,
+  "tipoPension": "RESERVA_ESCUELA"
+}
+// Payment: 1000.0 * 1.5 + 0 = 1500.0
+```
+
+```json Example 3: Premium plan, own horse with full pension
+{
+  "cantidadClases": 16,
+  "tipoPension": "CABALLO_PROPIO",
+  "cuotaPension": "ENTERA"
+}
+// Payment: 1000.0 * 2.5 + 500.0 = 3000.0
+```
+
+</CodeGroup>
+
+## Validation Rules
+
+When creating or updating students, the API enforces these business rules:
+
+<AccordionGroup>
+  <Accordion title="DNI Uniqueness">
+    Each student must have a unique national ID (`dni`). Duplicate DNI values will trigger a `ConflictException`.
+  </Accordion>
+  
+  <Accordion title="Class Plan Validation">
+    `cantidadClases` must be exactly 4, 8, 12, or 16. Other values throw a `ValidationException`.
+  </Accordion>
+  
+  <Accordion title="Pension Consistency">
+    - `SIN_CABALLO`: `cuotaPension` and `caballoId` must be null
+    - `RESERVA_ESCUELA`: `cuotaPension` must be null, `caballoId` required
+    - `CABALLO_PROPIO`: Both `cuotaPension` and `caballoId` required
+  </Accordion>
+  
+  <Accordion title="Active Student Requirements">
+    Only active students (`activo = true`) can be assigned to regular classes. Inactive students can only participate in trial classes.
+  </Accordion>
+</AccordionGroup>
+
+## Related Endpoints
+
+- `GET /api/v1/alumnos` - List all students
+- `POST /api/v1/alumnos` - Create new student
+- `GET /api/v1/alumnos/{id}` - Get student details
+- `PUT /api/v1/alumnos/{id}` - Update student
+- `DELETE /api/v1/alumnos/{id}` - Permanently delete student
+- `DELETE /api/v1/alumnos/{id}/temp` - Deactivate student
+- `POST /api/v1/alumnos/{id}/convertir` - Convert trial student to regular enrollment

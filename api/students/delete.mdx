@@ -1,0 +1,101 @@
+---
+title: "Delete Student"
+api: "DELETE /api/v1/alumnos/{id}"
+---
+
+## Physical Delete
+
+Permanently deletes a student from the database. This action cannot be undone.
+
+### Path Parameters
+
+<ParamField path="id" type="long" required>
+  The unique identifier of the student to delete
+</ParamField>
+
+### Response
+
+Returns a success message with HTTP 200 (OK) status.
+
+<ResponseField name="mensaje" type="string">
+  Success message: `"Alumno con ID {id} eliminado correctamente"`
+</ResponseField>
+
+<ResponseExample>
+```json
+{
+  "mensaje": "Alumno con ID 1 eliminado correctamente"
+}
+```
+</ResponseExample>
+
+## Business Logic
+
+The service validates that the student exists before performing the deletion. This is a physical delete operation that permanently removes the student record from the database.
+
+<Warning>
+  This operation permanently deletes the student record. Consider using the [logical delete endpoint](#logical-delete) instead to maintain data integrity and historical records.
+</Warning>
+
+## Error Responses
+
+<ResponseField name="404" type="object">
+  Not Found - Student with the given ID does not exist
+</ResponseField>
+
+---
+
+## Logical Delete (Inactivate)
+
+<api>DELETE /api/v1/alumnos/{id}/inactivar</api>
+
+Inactivates a student without permanently deleting their record. This is the recommended deletion method as it preserves historical data.
+
+### Path Parameters
+
+<ParamField path="id" type="long" required>
+  The unique identifier of the student to inactivate
+</ParamField>
+
+### Response
+
+Returns a success message with HTTP 200 (OK) status.
+
+<ResponseField name="mensaje" type="string">
+  Success message: `"Alumno con ID {id} inactivado correctamente"`
+</ResponseField>
+
+<ResponseExample>
+```json
+{
+  "mensaje": "Alumno con ID 1 inactivado correctamente"
+}
+```
+</ResponseExample>
+
+## Business Logic
+
+The service performs the following validations:
+
+1. **Student Exists**: Validates that a student with the given ID exists
+2. **Student is Active**: Verifies that the student is currently active before inactivating
+
+This operation sets the student's `activo` field to `false`, effectively marking them as inactive while preserving their data in the system.
+
+<Info>
+  Logical deletion is recommended over physical deletion as it:
+  - Preserves historical records
+  - Maintains referential integrity with classes and other entities
+  - Allows for reactivation if needed
+  - Supports audit trails and reporting
+</Info>
+
+## Error Responses
+
+<ResponseField name="404" type="object">
+  Not Found - Student with the given ID does not exist
+</ResponseField>
+
+<ResponseField name="422" type="object">
+  Unprocessable Entity - Student is already inactive
+</ResponseField>

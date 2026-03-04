@@ -1,0 +1,401 @@
+---
+title: "User Management"
+description: "Manage user accounts - list, view, update, delete, and upload avatars"
+---
+
+## List All Users
+
+<api>GET /api/v1/auth/users</api>
+
+Retrieves a list of all registered users in the system.
+
+### Authentication
+
+Requires Basic Authentication. Typically restricted to ADMIN role.
+
+### Response
+
+Returns an array of User objects.
+
+<ResponseField name="users" type="array">
+  Array of user objects with the following fields:
+  
+  <Expandable title="User Object">
+    <ResponseField name="id" type="long" required>
+      Unique identifier for the user
+    </ResponseField>
+    
+    <ResponseField name="username" type="string" required>
+      User's unique username
+    </ResponseField>
+    
+    <ResponseField name="email" type="string" required>
+      User's email address
+    </ResponseField>
+    
+    <ResponseField name="password" type="string" required>
+      BCrypt-encrypted password
+    </ResponseField>
+    
+    <ResponseField name="rol" type="RolSeguridad" required>
+      User role: ADMIN, INSTRUCTOR, or ALUMNO
+    </ResponseField>
+    
+    <ResponseField name="activo" type="boolean" required>
+      Account active status
+    </ResponseField>
+    
+    <ResponseField name="fechaCreacion" type="LocalDateTime" required>
+      Account creation timestamp
+    </ResponseField>
+    
+    <ResponseField name="personaDni" type="integer">
+      Associated person's DNI
+    </ResponseField>
+    
+    <ResponseField name="personaTipo" type="string">
+      Type of associated person
+    </ResponseField>
+    
+    <ResponseField name="avatarUrl" type="string">
+      Avatar image URL
+    </ResponseField>
+  </Expandable>
+</ResponseField>
+
+### Example
+
+```bash cURL
+curl -X GET https://api.example.com/api/v1/auth/users \
+  -H "Authorization: Basic $(echo -n 'admin:password' | base64)"
+```
+
+### Example Response
+
+```json
+[
+  {
+    "id": 1,
+    "username": "admin",
+    "email": "admin@example.com",
+    "password": "$2a$10$...",
+    "rol": "ADMIN",
+    "activo": true,
+    "fechaCreacion": "2026-01-15T08:00:00",
+    "personaDni": null,
+    "personaTipo": null,
+    "avatarUrl": null
+  },
+  {
+    "id": 2,
+    "username": "johndoe",
+    "email": "john.doe@example.com",
+    "password": "$2a$10$...",
+    "rol": "ALUMNO",
+    "activo": true,
+    "fechaCreacion": "2026-03-01T10:30:00",
+    "personaDni": 12345678,
+    "personaTipo": "ALUMNO",
+    "avatarUrl": "https://api.example.com/uploads/avatar_2_1234567890.jpg"
+  }
+]
+```
+
+---
+
+## Get User by ID
+
+<api>GET /api/v1/auth/users/{id}</api>
+
+Retrieves a specific user by their unique ID.
+
+### Authentication
+
+Requires Basic Authentication.
+
+### Path Parameters
+
+<ParamField path="id" type="long" required>
+  The unique identifier of the user to retrieve
+</ParamField>
+
+### Response
+
+Returns a single User object (see structure in List All Users).
+
+### Error Responses
+
+<ResponseField name="404 Not Found">
+  Returned when no user exists with the specified ID
+  ```json
+  {
+    "message": "Usuario not found with ID: {id}"
+  }
+  ```
+</ResponseField>
+
+### Example
+
+```bash cURL
+curl -X GET https://api.example.com/api/v1/auth/users/2 \
+  -H "Authorization: Basic $(echo -n 'admin:password' | base64)"
+```
+
+---
+
+## Update User
+
+<api>PUT /api/v1/auth/users/{id}</api>
+
+Updates an existing user account. Note that the password field is commented out in the source and will not be updated.
+
+### Authentication
+
+Requires Basic Authentication.
+
+### Path Parameters
+
+<ParamField path="id" type="long" required>
+  The unique identifier of the user to update
+</ParamField>
+
+### Request Body
+
+<ParamField body="username" type="string" required>
+  New username. Must be unique if changed.
+  
+  **Validation:**
+  - Must not be blank
+  - Must be unique (if different from current value)
+  - Max length: 50 characters
+</ParamField>
+
+<ParamField body="email" type="string" required>
+  New email address. Must be unique if changed.
+  
+  **Validation:**
+  - Must not be blank
+  - Must be valid email format
+  - Must be unique (if different from current value)
+  - Max length: 100 characters
+</ParamField>
+
+<ParamField body="password" type="string" required>
+  Password field (currently not updated in implementation)
+  
+  **Note:** The password update is commented out in the source code (line 262)
+</ParamField>
+
+<ParamField body="rol" type="RolSeguridad" required>
+  New role for the user
+  
+  **Options:**
+  - `ADMIN`
+  - `INSTRUCTOR`
+  - `ALUMNO`
+</ParamField>
+
+<ParamField body="personaDni" type="integer">
+  DNI of associated person (optional)
+</ParamField>
+
+<ParamField body="avatarUrl" type="string">
+  Avatar URL (optional, max 255 characters)
+</ParamField>
+
+### Response
+
+<ResponseField name="mensaje" type="string">
+  Success message
+  
+  Example: `"Usuario actualizado correctamente: johndoe"`
+</ResponseField>
+
+### Error Responses
+
+<ResponseField name="404 Not Found">
+  User with specified ID doesn't exist
+</ResponseField>
+
+<ResponseField name="409 Conflict">
+  Username or email already taken by another user
+</ResponseField>
+
+### Example
+
+```bash cURL
+curl -X PUT https://api.example.com/api/v1/auth/users/2 \
+  -H "Authorization: Basic $(echo -n 'admin:password' | base64)" \
+  -H "Content-Type: application/json" \
+  -d '{
+    "username": "johndoe_updated",
+    "email": "john.updated@example.com",
+    "password": "newPassword123",
+    "rol": "INSTRUCTOR",
+    "personaDni": 12345678
+  }'
+```
+
+---
+
+## Delete User
+
+<api>DELETE /api/v1/auth/users/{id}</api>
+
+Deletes a user account from the system. Typically restricted to ADMIN role.
+
+### Authentication
+
+Requires Basic Authentication.
+
+### Path Parameters
+
+<ParamField path="id" type="long" required>
+  The unique identifier of the user to delete
+</ParamField>
+
+### Response
+
+<ResponseField name="mensaje" type="string">
+  Success message
+  
+  Example: `"Usuario eliminado correctamente"`
+</ResponseField>
+
+### Error Responses
+
+<ResponseField name="404 Not Found">
+  Returned when no user exists with the specified ID
+  ```json
+  {
+    "message": "Usuario not found with ID: {id}"
+  }
+  ```
+</ResponseField>
+
+### Example
+
+```bash cURL
+curl -X DELETE https://api.example.com/api/v1/auth/users/2 \
+  -H "Authorization: Basic $(echo -n 'admin:password' | base64)"
+```
+
+---
+
+## Upload Avatar
+
+<api>POST /api/v1/auth/users/{id}/avatar</api>
+
+Uploads an avatar image for a user. The file is stored on the server and a URL is generated and saved to the user's profile.
+
+### Authentication
+
+Requires Basic Authentication.
+
+### Path Parameters
+
+<ParamField path="id" type="long" required>
+  The unique identifier of the user
+</ParamField>
+
+### Request Parameters
+
+<ParamField body="avatar" type="file" required>
+  The avatar image file to upload (multipart form data)
+  
+  **File naming:** Server generates filename as `avatar_{id}_{timestamp}.jpg`
+</ParamField>
+
+### Response
+
+<ResponseField name="avatarUrl" type="string">
+  The full URL where the uploaded avatar can be accessed
+  
+  Example: `"https://api.example.com/uploads/avatar_2_1709567890123.jpg"`
+</ResponseField>
+
+### Error Responses
+
+<ResponseField name="404 Not Found">
+  User with specified ID doesn't exist
+  ```json
+  {
+    "message": "Usuario con ID {id} no encontrado"
+  }
+  ```
+</ResponseField>
+
+### Example
+
+```bash cURL
+curl -X POST https://api.example.com/api/v1/auth/users/2/avatar \
+  -H "Authorization: Basic $(echo -n 'johndoe:password' | base64)" \
+  -F "avatar=@/path/to/profile-picture.jpg"
+```
+
+### Example Response
+
+```json
+{
+  "avatarUrl": "https://api.example.com/uploads/avatar_2_1709567890123.jpg"
+}
+```
+
+**Note:** The URL is dynamically generated using `ServletUriComponentsBuilder` to match the current server context (localhost:8080 or production domain).
+
+---
+
+## Check Email Whitelist
+
+<api>GET /api/v1/auth/check-email/{email}</api>
+
+Checks if an email address is in the system whitelist for registration.
+
+### Authentication
+
+Requires Basic Authentication. Implementation shows `@PreAuthorize("hasRole('ADMIN')")` is commented out.
+
+### Path Parameters
+
+<ParamField path="email" type="string" required>
+  The email address to check against the whitelist
+</ParamField>
+
+### Response
+
+**200 OK** - Email is whitelisted (empty body)
+
+**403 Forbidden** - Email is not whitelisted (empty body)
+
+### Whitelist Configuration
+
+The whitelist is configured via application property:
+```properties
+app.whitelist.emails=email1@example.com,email2@example.com,email3@example.com
+```
+
+Default values:
+- claumarnavarro@gmail.com
+- luckidetrenque@gmail.com
+- santiagomatheu@gmail.com
+
+### Example
+
+```bash cURL
+# Check if email is whitelisted
+curl -X GET https://api.example.com/api/v1/auth/check-email/john.doe@example.com \
+  -H "Authorization: Basic $(echo -n 'admin:password' | base64)" \
+  -w "\nHTTP Status: %{http_code}\n"
+```
+
+### Example Responses
+
+**Email is whitelisted:**
+```
+HTTP/1.1 200 OK
+```
+
+**Email is not whitelisted:**
+```
+HTTP/1.1 403 Forbidden
+```

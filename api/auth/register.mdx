@@ -1,0 +1,213 @@
+---
+title: "Register"
+description: "Create a new user account in the system"
+api: "POST /api/v1/auth/register"
+---
+
+## Authentication
+
+This endpoint does not require authentication but enforces email whitelist validation.
+
+## Request Body
+
+<ParamField body="username" type="string" required>
+  Unique username for the account. Cannot be blank.
+  
+  **Validation:**
+  - Must not be blank
+  - Must be unique across all users
+  - Max length: 50 characters
+</ParamField>
+
+<ParamField body="email" type="string" required>
+  User's email address. Must be in the whitelist.
+  
+  **Validation:**
+  - Must not be blank
+  - Must be a valid email format
+  - Must be unique across all users
+  - Must be in the system whitelist (configurable via `app.whitelist.emails`)
+  - Max length: 100 characters
+</ParamField>
+
+<ParamField body="password" type="string" required>
+  Password for the account. Will be encrypted with BCrypt.
+  
+  **Validation:**
+  - Must not be blank
+</ParamField>
+
+<ParamField body="rol" type="RolSeguridad" required>
+  User role in the system. Must be one of the following enum values:
+  
+  **Options:**
+  - `ADMIN` - Full system management access
+  - `INSTRUCTOR` - Manages their own classes
+  - `ALUMNO` - Views their own classes
+  
+  **Validation:**
+  - Cannot be null
+</ParamField>
+
+<ParamField body="personaDni" type="integer">
+  DNI of an associated Alumno or Instructor. Optional field to link user account with a person entity.
+  
+  If provided, the `personaTipo` will be automatically set to match the role.
+</ParamField>
+
+<ParamField body="avatarUrl" type="string">
+  URL of the user's avatar image. Optional field.
+  
+  Max length: 255 characters
+</ParamField>
+
+## Response
+
+<ResponseField name="mensaje" type="string">
+  Success message confirming user registration
+  
+  Example: `"Usuario registrado correctamente: johndoe"`
+</ResponseField>
+
+## Error Responses
+
+<ResponseField name="400 Bad Request">
+  Returned when validation fails on input fields
+  ```json
+  {
+    "errors": [
+      {
+        "field": "email",
+        "message": "El email debe ser válido"
+      }
+    ]
+  }
+  ```
+</ResponseField>
+
+<ResponseField name="409 Conflict">
+  Returned when email is not in whitelist, username already exists, or email already exists
+  
+  **Email not whitelisted:**
+  ```json
+  {
+    "message": "Email no autorizado para registro"
+  }
+  ```
+  
+  **Username conflict:**
+  ```json
+  {
+    "message": "Usuario already exists with username: {username}"
+  }
+  ```
+  
+  **Email conflict:**
+  ```json
+  {
+    "message": "Usuario already exists with email: {email}"
+  }
+  ```
+</ResponseField>
+
+## Whitelist Validation
+
+The registration endpoint validates that the provided email is in the system whitelist. The whitelist is configured via the application property:
+
+```properties
+app.whitelist.emails=email1@example.com,email2@example.com,email3@example.com
+```
+
+Default whitelisted emails:
+- claumarnavarro@gmail.com
+- luckidetrenque@gmail.com
+- santiagomatheu@gmail.com
+
+To check if an email is whitelisted, use the [Check Email Whitelist](/api/auth/users#check-email-whitelist) endpoint.
+
+## Example
+
+<CodeGroup>
+
+```bash cURL
+curl -X POST https://api.example.com/api/v1/auth/register \
+  -H "Content-Type: application/json" \
+  -d '{
+    "username": "johndoe",
+    "email": "john.doe@example.com",
+    "password": "securePassword123",
+    "rol": "ALUMNO",
+    "personaDni": 12345678
+  }'
+```
+
+```javascript JavaScript
+fetch('https://api.example.com/api/v1/auth/register', {
+  method: 'POST',
+  headers: {
+    'Content-Type': 'application/json'
+  },
+  body: JSON.stringify({
+    username: 'johndoe',
+    email: 'john.doe@example.com',
+    password: 'securePassword123',
+    rol: 'ALUMNO',
+    personaDni: 12345678
+  })
+})
+  .then(response => response.json())
+  .then(data => console.log(data));
+```
+
+```python Python
+import requests
+
+data = {
+    'username': 'johndoe',
+    'email': 'john.doe@example.com',
+    'password': 'securePassword123',
+    'rol': 'ALUMNO',
+    'personaDni': 12345678
+}
+
+response = requests.post(
+    'https://api.example.com/api/v1/auth/register',
+    json=data
+)
+
+print(response.json())
+```
+
+```java Java
+RegisterRequest request = new RegisterRequest();
+request.setUsername("johndoe");
+request.setEmail("john.doe@example.com");
+request.setPassword("securePassword123");
+request.setRol(RolSeguridad.ALUMNO);
+request.setPersonaDni(12345678);
+
+// Use your HTTP client to POST the request
+```
+
+</CodeGroup>
+
+## Example Request
+
+```json
+{
+  "username": "johndoe",
+  "email": "john.doe@example.com",
+  "password": "securePassword123",
+  "rol": "ALUMNO",
+  "personaDni": 12345678,
+  "avatarUrl": "https://example.com/avatars/default.jpg"
+}
+```
+
+## Example Response
+
+```json
+{
+  "mensaje": "Usuario registrado correctamente: johndoe"
+}
+```

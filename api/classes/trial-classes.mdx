@@ -1,0 +1,279 @@
+---
+title: "Trial Classes"
+api: "POST /api/v1/clases/prueba"
+---
+
+Endpoints for managing trial classes (clases de prueba) for prospective students.
+
+## Create Trial Class
+
+<api method="POST" endpoint="/api/v1/clases/prueba" />
+
+Creates a trial class. This endpoint automatically sets `esPrueba` to `true`.
+
+### Request Body
+
+Accepts the same `ClaseDto` structure as the regular class creation endpoint.
+
+<ParamField body="especialidad" type="Especialidad">
+Class specialty (EQUINOTERAPIA, EQUITACION, ADIESTRAMIENTO, MONTA)
+</ParamField>
+
+<ParamField body="dia" type="LocalDate" required>
+Class date (YYYY-MM-DD)
+</ParamField>
+
+<ParamField body="hora" type="LocalTime" required>
+Class time (HH:mm:ss)
+</ParamField>
+
+<ParamField body="duracion" type="Integer" required>
+Duration in minutes (minimum 30)
+</ParamField>
+
+<ParamField body="estado" type="Estado" required>
+Class state (typically PROGRAMADA)
+</ParamField>
+
+<ParamField body="observaciones" type="String">
+Optional notes (max 50 chars)
+</ParamField>
+
+<ParamField body="instructorId" type="Long" required>
+Instructor ID
+</ParamField>
+
+<ParamField body="personaPruebaId" type="Long">
+ID of the trial person (recommended for trial classes)
+</ParamField>
+
+<ParamField body="alumnoId" type="Long">
+Student ID (if converting existing student to trial)
+</ParamField>
+
+<ParamField body="caballoId" type="Long" required>
+Horse ID
+</ParamField>
+
+<ParamField body="esPrueba" type="Boolean">
+Ignored - automatically set to `true` by this endpoint
+</ParamField>
+
+### Response
+
+Returns the created `Clase` object.
+
+### Status Codes
+
+- `201 Created` - Trial class successfully created
+- `400 Bad Request` - Invalid request body
+- `404 Not Found` - Referenced entity does not exist
+- `409 Conflict` - Scheduling conflict
+
+### Example Request
+
+```json
+{
+  "especialidad": "EQUINOTERAPIA",
+  "dia": "2026-03-20",
+  "hora": "14:00:00",
+  "duracion": 30,
+  "estado": "PROGRAMADA",
+  "observaciones": "Primera clase de prueba",
+  "instructorId": 3,
+  "personaPruebaId": 15,
+  "caballoId": 6
+}
+```
+
+### Example Response
+
+```json
+{
+  "id": 78,
+  "especialidad": "EQUINOTERAPIA",
+  "dia": "2026-03-20",
+  "hora": "14:00:00",
+  "duracion": 30,
+  "estado": "PROGRAMADA",
+  "observaciones": "Primera clase de prueba",
+  "esPrueba": true,
+  "diaHoraCompleto": "2026-03-20T14:00:00"
+}
+```
+
+---
+
+## List All Trial Classes
+
+<api method="GET" endpoint="/api/v1/clases/prueba" />
+
+Retrieves all trial classes in the system with complete details.
+
+### Response
+
+Returns an array of `ClaseResponseDto` objects where `esPrueba` is `true`.
+
+### Status Codes
+
+- `200 OK` - Returns array of trial classes (may be empty)
+
+### Example Response
+
+```json
+[
+  {
+    "id": 78,
+    "especialidad": "EQUINOTERAPIA",
+    "dia": "2026-03-20",
+    "hora": "14:00:00",
+    "duracion": 30,
+    "estado": "PROGRAMADA",
+    "observaciones": "Primera clase de prueba",
+    "esPrueba": true,
+    "instructorId": 3,
+    "instructorNombreCompleto": "Ana Martinez",
+    "personaPruebaId": 15,
+    "personaPruebaNombreCompleto": "Juan Perez",
+    "caballoId": 6,
+    "caballoNombre": "Luna",
+    "diaHoraCompleto": "2026-03-20T14:00:00"
+  }
+]
+```
+
+---
+
+## Get Trial Classes by Student
+
+<api method="GET" endpoint="/api/v1/clases/alumno/{alumnoId}/prueba" />
+
+Retrieves all trial classes for a specific student.
+
+### Path Parameters
+
+<ParamField path="alumnoId" type="Long" required>
+The unique identifier of the student
+</ParamField>
+
+### Response
+
+Returns an array of `ClaseResponseDto` objects for trial classes associated with the student.
+
+### Status Codes
+
+- `200 OK` - Returns array of trial classes for the student
+
+### Example Response
+
+```json
+[
+  {
+    "id": 92,
+    "especialidad": "EQUITACION",
+    "dia": "2026-02-15",
+    "hora": "10:00:00",
+    "duracion": 30,
+    "estado": "COMPLETADA",
+    "observaciones": "Mostró gran potencial",
+    "esPrueba": true,
+    "instructorId": 5,
+    "instructorNombreCompleto": "Carlos Rodriguez",
+    "alumnoId": 12,
+    "alumnoNombreCompleto": "Maria Gonzalez",
+    "caballoId": 8,
+    "caballoNombre": "Thunder",
+    "diaHoraCompleto": "2026-02-15T10:00:00"
+  }
+]
+```
+
+---
+
+## Check if Student Has Trial Class
+
+<api method="GET" endpoint="/api/v1/clases/alumno/{alumnoId}/tiene-prueba" />
+
+Verifies whether a student has taken a trial class and returns summary information.
+
+### Path Parameters
+
+<ParamField path="alumnoId" type="Long" required>
+The unique identifier of the student
+</ParamField>
+
+### Response
+
+Returns an object with trial class information for the student.
+
+<ResponseField name="alumnoId" type="Long">
+The student's ID
+</ResponseField>
+
+<ResponseField name="tienePrueba" type="Boolean">
+`true` if the student has at least one trial class, `false` otherwise
+</ResponseField>
+
+<ResponseField name="cantidadClasesPrueba" type="Integer">
+The number of trial classes the student has taken
+</ResponseField>
+
+### Status Codes
+
+- `200 OK` - Returns trial class information
+
+### Example Response - Student with Trial Class
+
+```json
+{
+  "alumnoId": 12,
+  "tienePrueba": true,
+  "cantidadClasesPrueba": 2
+}
+```
+
+### Example Response - Student without Trial Class
+
+```json
+{
+  "alumnoId": 25,
+  "tienePrueba": false,
+  "cantidadClasesPrueba": 0
+}
+```
+
+## Trial Class Validation
+
+When working with trial classes, keep these rules in mind:
+
+### esPrueba Field
+
+- Automatically set to `true` when using the `POST /api/v1/clases/prueba` endpoint
+- Can be manually set when using the regular `POST /api/v1/clases` endpoint
+- Cannot be null - defaults to `false` if not specified
+
+### Participant Assignment
+
+Trial classes can have either:
+
+1. **personaPruebaId**: For prospective students not yet enrolled (recommended)
+2. **alumnoId**: For existing students taking a trial in a new specialty
+
+Both fields are optional, but at least one should be provided for proper record-keeping.
+
+### Business Rules
+
+<Note>
+The service layer may enforce business rules such as:
+
+- Limiting the number of trial classes per person
+- Restricting trial classes to certain specialties
+- Requiring different pricing or scheduling rules
+- Automatic follow-up workflows after trial completion
+
+Consult the service implementation for specific business logic.
+</Note>
+
+<Tip>
+Use the `GET /api/v1/clases/alumno/{alumnoId}/tiene-prueba` endpoint before scheduling to check if a student has already taken a trial class, which can help enforce business rules about trial class eligibility.
+</Tip>

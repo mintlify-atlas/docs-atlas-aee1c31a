@@ -1,0 +1,355 @@
+---
+title: Classes
+description: Understanding the class model, specialties, states, and scheduling rules in the HRS Riding School API
+---
+
+## Overview
+
+Classes (Clases) represent scheduled riding sessions. Each class links an instructor, student (optional), horse, and specialty, with specific date, time, and duration.
+
+## Class Model Structure
+
+The `Clase` entity includes these key fields:
+
+```java
+Long id                 // Unique identifier
+Especialidad especialidad  // Class specialty/discipline
+LocalDate dia           // Class date
+LocalTime hora          // Start time
+Integer duracion        // Duration in minutes (30 or 60)
+Estado estado           // Current state
+String observaciones    // Notes (max 50 characters)
+Boolean esPrueba        // Trial class flag
+
+// Relationships
+Instructor instructor   // Teaching instructor (required)
+Alumno alumno           // Enrolled student (optional)
+Caballo caballo         // Assigned horse (required)
+PersonaPrueba personaPrueba  // Trial prospect (optional)
+```
+
+## Class Specialties
+
+The `Especialidad` enum defines four class types:
+
+<CardGroup cols={2}>
+  <Card title="EQUITACION" icon="horse">
+    General riding instruction
+    
+    Basic riding techniques and skills
+  </Card>
+  
+  <Card title="ADIESTRAMIENTO" icon="medal">
+    Dressage training
+    
+    Advanced discipline and training
+  </Card>
+  
+  <Card title="EQUINOTERAPIA" icon="heart">
+    Therapeutic riding
+    
+    Classes for special needs students
+  </Card>
+  
+  <Card title="MONTA" icon="user-check">
+    Instructor practice
+    
+    Solo instructor sessions (no student required)
+  </Card>
+</CardGroup>
+
+### Specialty-Specific Rules
+
+<Note>
+The `MONTA` specialty is unique - it's for instructors to practice or train without a student. Classes with this specialty can have `alumno = null`.
+</Note>
+
+```java MONTA validation
+if (claseDto.getEspecialidad() == Especialidad.MONTA) {
+    // MONTA is only for instructors, no student required
+    alumno = null;
+} else {
+    if (claseDto.getAlumnoId() == null) {
+        throw new BusinessException("Una clase regular requiere alumnoId");
+    }
+    alumno = obtenerAlumnoValido(claseDto.getAlumnoId());
+}
+```
+
+## Class States
+
+The `Estado` enum tracks the lifecycle of each class:
+
+| State | Code | Description | Automatic Transition |
+|-------|------|-------------|----------------------|
+| Scheduled | `PROGRAMADA` | Class is scheduled | → `INICIADA` at start time |
+| Started | `INICIADA` | Class is in progress | → `COMPLETADA` after 60 minutes |
+| Completed | `COMPLETADA` | Class finished successfully | None |
+| Cancelled | `CANCELADA` | Class was cancelled | None |
+| Absent with Notice | `ACA` | Student cancelled in advance | None |
+| Absent without Notice | `ASA` | Student no-show | None |
+
+### State Transitions
+
+<Steps>
+  <Step title="Create Class">
+    New class starts in `PROGRAMADA` state
+  </Step>
+  
+  <Step title="Automatic Start">
+    Scheduled task changes `PROGRAMADA` → `INICIADA` when class time arrives
+  </Step>
+  
+  <Step title="Automatic Completion">
+    After 60 minutes, `INICIADA` → `COMPLETADA`
+  </Step>
+  
+  <Step title="Manual State Changes">
+    Use `PATCH /clases/{id}/estado` to set `CANCELADA`, `ACA`, or `ASA`
+  </Step>
+</Steps>
+
+### Automated State Management
+
+A scheduled task runs every 30 minutes during operating hours:
+
+```java
+@Scheduled(cron = "0 0/30 9-18 * * TUE-SAT", zone = "America/Argentina/Buenos_Aires")
+public void actualizarEstadosDeClases() {
+    LocalDate hoy = LocalDate.now(zona);
+    LocalTime ahora = LocalTime.now(zona);
+    
+    // 1. Start scheduled classes
+    List<Clase> clasesPorIniciar = claseRepository.findByDiaAndEstado(hoy, Estado.PROGRAMADA);
+    for (Clase clase : clasesPorIniciar) {
+        if (!clase.getHora().isAfter(ahora)) {
+            clase.setEstado(Estado.INICIADA);
+        }
+    }
+    
+    // 2. Complete started classes after 60 minutes
+    List<Clase> clasesEnCurso = claseRepository.findByDiaAndEstado(hoy, Estado.INICIADA);
+    for (Clase clase : clasesEnCurso) {
+        LocalTime horaFinalizacion = clase.getHora().plusMinutes(60);
+        if (!horaFinalizacion.isAfter(ahora)) {
+            clase.setEstado(Estado.COMPLETADA);
+        }
+    }
+}
+```
+
+<Info>
+The task runs Tuesday through Saturday from 9:00 AM to 6:00 PM (Argentina/Buenos_Aires timezone).
+</Info>
+
+## Duration Options
+
+Classes can be either 30 or 60 minutes long:
+
+```java Duration validation
+private void validarDuracion(Integer duracion) {
+    if (duracion == null || (!duracion.equals(30) && !duracion.equals(60))) {
+        throw new BusinessException("La duración debe ser 30 o 60 minutos");
+    }
+}
+```
+
+<Warning>
+Only 30 and 60 minute durations are allowed. Other values will trigger a validation error.
+</Warning>
+
+## Time Constraints
+
+### Operating Hours
+
+The school operates from 09:00 to 18:30:
+
+```java Operating hours validation
+LocalTime apertura = LocalTime.of(9, 0);
+if (hora.isBefore(apertura)) {
+    throw new BusinessException(
+        "La escuela abre a las 09:00, no se pueden programar clases antes de esa hora");
+}
+```
+
+### No Classes After 18:30
+
+Classes cannot end after 18:30. This affects duration selection:
+
+```java End time validation
+private void validarDuracionSegunHorario(LocalTime hora, Integer duracion) {
+    LocalTime horaFin = hora.plusMinutes(duracion != null ? duracion : 30);
+    LocalTime horaLimite = LocalTime.of(18, 30);
+    
+    if (horaFin.isAfter(horaLimite)) {
+        throw new BusinessException(
+            "La clase no puede terminar después de las 18:30. " +
+            "A las " + hora + " solo se permite duración de 30 minutos.");
+    }
+}
+```
+
+#### Examples
+
+<CodeGroup>
+
+```json Valid: 18:00 for 30 minutes
+{
+  "hora": "18:00",
+  "duracion": 30
+}
+// Ends at 18:30 ✓
+```
+
+```json Invalid: 18:00 for 60 minutes
+{
+  "hora": "18:00",
+  "duracion": 60
+}
+// Would end at 19:00 ✗
+// Error: "La clase no puede terminar después de las 18:30"
+```
+
+```json Invalid: 18:15 for 30 minutes
+{
+  "hora": "18:15",
+  "duracion": 30
+}
+// Would end at 18:45 ✗
+```
+
+</CodeGroup>
+
+### Advance Booking Requirement
+
+Classes for today must be scheduled at least 60 minutes in advance:
+
+```java Advance booking validation
+if (dia.isEqual(hoy)) {
+    LocalTime ahora = LocalTime.now(zonaArgentina);
+    if (hora.isBefore(ahora.plusMinutes(60))) {
+        throw new BusinessException(
+            "La clase debe programarse con al menos 60 minutos de anticipación");
+    }
+}
+```
+
+<Note>
+This rule only applies to classes scheduled for the current date. Future dates don't have this restriction.
+</Note>
+
+## Scheduling Conflict Prevention
+
+The system prevents double-booking of students and horses:
+
+```java Conflict validation
+private void validarConflictoDeHorario(
+    Long id,
+    LocalDate dia,
+    LocalTime hora,
+    Long alumnoId,
+    Long caballoId
+) {
+    if (claseRepository.existsConflictoAlumno(id, dia, hora, alumnoId)) {
+        throw new BusinessException(
+            "El alumno ya tiene una clase asignada a esa hora");
+    }
+    
+    if (claseRepository.existsConflictoCaballo(id, dia, hora, caballoId)) {
+        throw new BusinessException(
+            "El caballo ya está asignado a una clase en esa hora");
+    }
+}
+```
+
+<Warning>
+Both students and horses can only have one class at any given time. The system validates this for all `PROGRAMADA` and `INICIADA` classes.
+</Warning>
+
+## Participant Assignment
+
+Classes can have different participant configurations:
+
+<Tabs>
+  <Tab title="Regular Class">
+    ```json Standard class with enrolled student
+    {
+      "especialidad": "EQUITACION",
+      "esPrueba": false,
+      "alumnoId": 15,
+      "personaPruebaId": null,
+      "instructorId": 2,
+      "caballoId": 8
+    }
+    ```
+  </Tab>
+  
+  <Tab title="Trial Class (Existing Student)">
+    ```json Trial in new specialty for enrolled student
+    {
+      "especialidad": "ADIESTRAMIENTO",
+      "esPrueba": true,
+      "alumnoId": 15,  // Trying new specialty
+      "personaPruebaId": null,
+      "instructorId": 2,
+      "caballoId": 8
+    }
+    ```
+  </Tab>
+  
+  <Tab title="Trial Class (New Prospect)">
+    ```json Trial for completely new person
+    {
+      "especialidad": "EQUITACION",
+      "esPrueba": true,
+      "alumnoId": null,
+      "personaPruebaId": 42,  // New prospect
+      "instructorId": 2,
+      "caballoId": 8
+    }
+    ```
+  </Tab>
+  
+  <Tab title="Instructor Practice">
+    ```json MONTA class (no student)
+    {
+      "especialidad": "MONTA",
+      "esPrueba": false,
+      "alumnoId": null,  // No student required
+      "personaPruebaId": null,
+      "instructorId": 2,
+      "caballoId": 8
+    }
+    ```
+  </Tab>
+</Tabs>
+
+## Database Indexes
+
+The `clases` table has optimized indexes for common queries:
+
+```sql
+CREATE INDEX idx_clase_dia_hora ON clases (dia, hora);
+CREATE INDEX idx_clase_instructor_dia ON clases (instructor_id, dia);
+CREATE INDEX idx_clase_alumno_dia ON clases (alumno_id, dia);
+CREATE INDEX idx_clase_caballo_dia ON clases (caballo_id, dia);
+CREATE INDEX idx_clase_estado ON clases (estado);
+CREATE INDEX idx_clase_especialidad ON clases (especialidad);
+```
+
+These improve performance for:
+- Calendar views (by date and time)
+- Instructor schedules
+- Student class history
+- Horse availability
+- State-based filtering
+
+## Related Endpoints
+
+- `GET /api/v1/clases` - List all classes
+- `POST /api/v1/clases` - Create new class
+- `GET /api/v1/clases/{id}` - Get class details
+- `PUT /api/v1/clases/{id}` - Update class
+- `PATCH /api/v1/clases/{id}/estado` - Change class state
+- `DELETE /api/v1/clases/{id}` - Delete class
+- `GET /api/v1/clases/filtros` - Query with multiple filters

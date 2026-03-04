@@ -1,0 +1,255 @@
+---
+title: "Delete Instructor"
+api: "DELETE /api/v1/instructores/{id}"
+---
+
+Permanently deletes an instructor from the riding school system (physical deletion).
+
+<Warning>
+This operation permanently removes the instructor from the database and cannot be undone. Consider using the logical deletion endpoint instead to preserve data integrity.
+</Warning>
+
+## Path Parameters
+
+<ParamField path="id" type="long" required>
+  The unique identifier of the instructor to delete
+</ParamField>
+
+## Response
+
+<ResponseField name="mensaje" type="string">
+  Success message confirming the instructor deletion
+</ResponseField>
+
+<RequestExample>
+```bash cURL
+curl -X DELETE "https://api.ridingschool.example/api/v1/instructores/1" \
+  -H "Content-Type: application/json"
+```
+</RequestExample>
+
+<ResponseExample>
+```json 200
+{
+  "mensaje": "Instructor con ID 1 eliminado correctamente"
+}
+```
+
+```json 404
+{
+  "timestamp": "2024-03-15T10:30:00",
+  "status": 404,
+  "error": "Not Found",
+  "message": "Instructor not found with ID: 1",
+  "path": "/api/v1/instructores/1"
+}
+```
+</ResponseExample>
+
+---
+
+## Deactivate Instructor (Logical Deletion)
+
+<api method="DELETE" path="/api/v1/instructores/{id}/inactivar" />
+
+Deactivates an instructor without removing them from the database (logical deletion). This sets the instructor's `activo` field to `false`.
+
+<Info>
+This is the recommended way to remove instructors as it preserves historical data and relationships with classes.
+</Info>
+
+### Path Parameters
+
+<ParamField path="id" type="long" required>
+  The unique identifier of the instructor to deactivate
+</ParamField>
+
+### Response
+
+<ResponseField name="mensaje" type="string">
+  Success message confirming the instructor deactivation
+</ResponseField>
+
+<RequestExample>
+```bash cURL
+curl -X DELETE "https://api.ridingschool.example/api/v1/instructores/1/inactivar" \
+  -H "Content-Type: application/json"
+```
+</RequestExample>
+
+<ResponseExample>
+```json 200
+{
+  "mensaje": "Instructor con ID 1 inactivado correctamente"
+}
+```
+
+```json 404
+{
+  "timestamp": "2024-03-15T10:30:00",
+  "status": 404,
+  "error": "Not Found",
+  "message": "Instructor not found with ID: 1",
+  "path": "/api/v1/instructores/1/inactivar"
+}
+```
+</ResponseExample>
+
+---
+
+## Search Instructors with Filters
+
+<api method="GET" path="/api/v1/instructores/buscar" />
+
+Searches for instructors based on various filters. If no matches are found, returns the complete list of all instructors.
+
+### Query Parameters
+
+<ParamField query="nombre" type="string">
+  Filter by first name (partial match)
+</ParamField>
+
+<ParamField query="apellido" type="string">
+  Filter by last name (partial match)
+</ParamField>
+
+<ParamField query="activo" type="boolean">
+  Filter by active status
+  
+  - `true` - Only active instructors
+  - `false` - Only inactive instructors
+</ParamField>
+
+<ParamField query="fechaNacimiento" type="date">
+  Filter by birth date in ISO 8601 format (YYYY-MM-DD)
+</ParamField>
+
+### Response
+
+<ResponseField name="instructors" type="array">
+  Array of instructor objects matching the search criteria
+  
+  <Expandable title="Instructor object">
+    <ResponseField name="id" type="long">
+      Unique identifier for the instructor
+    </ResponseField>
+    
+    <ResponseField name="dni" type="string">
+      National identification number
+    </ResponseField>
+    
+    <ResponseField name="nombre" type="string">
+      First name
+    </ResponseField>
+    
+    <ResponseField name="apellido" type="string">
+      Last name
+    </ResponseField>
+    
+    <ResponseField name="nombreCompleto" type="string">
+      Full name
+    </ResponseField>
+    
+    <ResponseField name="fechaNacimiento" type="date">
+      Birth date
+    </ResponseField>
+    
+    <ResponseField name="telefono" type="string">
+      Phone number
+    </ResponseField>
+    
+    <ResponseField name="email" type="string">
+      Email address
+    </ResponseField>
+    
+    <ResponseField name="activo" type="boolean">
+      Active status
+    </ResponseField>
+    
+    <ResponseField name="color" type="string">
+      Assigned color code
+    </ResponseField>
+  </Expandable>
+</ResponseField>
+
+<RequestExample>
+```bash cURL - Search by name
+curl -X GET "https://api.ridingschool.example/api/v1/instructores/buscar?nombre=Juan" \
+  -H "Content-Type: application/json"
+```
+
+```bash cURL - Search active instructors
+curl -X GET "https://api.ridingschool.example/api/v1/instructores/buscar?activo=true" \
+  -H "Content-Type: application/json"
+```
+
+```bash cURL - Multiple filters
+curl -X GET "https://api.ridingschool.example/api/v1/instructores/buscar?nombre=Juan&activo=true" \
+  -H "Content-Type: application/json"
+```
+</RequestExample>
+
+<ResponseExample>
+```json 200 - Matches found
+[
+  {
+    "id": 1,
+    "dni": "12345678",
+    "nombre": "Juan",
+    "apellido": "García",
+    "nombreCompleto": "Juan García",
+    "fechaNacimiento": "1985-03-15",
+    "telefono": "+34612345678",
+    "email": "juan.garcia@example.com",
+    "activo": true,
+    "color": "#FF5733"
+  }
+]
+```
+
+```json 200 - No matches (returns all instructors)
+{
+  "mensaje": "No existen instructores con los filtros de búsqueda ingresados, se retorna el listado completo.",
+  "instructores": [
+    {
+      "id": 1,
+      "dni": "12345678",
+      "nombre": "Juan",
+      "apellido": "García",
+      "nombreCompleto": "Juan García",
+      "fechaNacimiento": "1985-03-15",
+      "telefono": "+34612345678",
+      "email": "juan.garcia@example.com",
+      "activo": true,
+      "color": "#FF5733"
+    },
+    {
+      "id": 2,
+      "dni": "87654321",
+      "nombre": "María",
+      "apellido": "López",
+      "nombreCompleto": "María López",
+      "fechaNacimiento": "1990-07-22",
+      "telefono": "+34687654321",
+      "email": "maria.lopez@example.com",
+      "activo": true,
+      "color": "#3498DB"
+    }
+  ]
+}
+```
+</ResponseExample>
+
+## Notes
+
+### Physical vs Logical Deletion
+
+- **Physical deletion** (`DELETE /api/v1/instructores/{id}`): Permanently removes the instructor record from the database. Use with caution.
+- **Logical deletion** (`DELETE /api/v1/instructores/{id}/inactivar`): Sets the instructor's status to inactive while preserving all data. This is the recommended approach for maintaining data integrity and historical records.
+
+### Search Behavior
+
+- All query parameters are optional
+- Multiple filters can be combined
+- If no instructors match the filters, the API returns all instructors with an informative message
+- Search is case-sensitive for exact matches on dates, but may support partial matching for name fields depending on the implementation

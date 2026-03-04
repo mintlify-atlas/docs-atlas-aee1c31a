@@ -1,0 +1,206 @@
+---
+title: 'Setup & Installation'
+description: 'Get the HRS Riding School API up and running on your local machine'
+---
+
+## Prerequisites
+
+Before you begin, ensure you have the following installed on your system:
+
+<Info>
+  **Java Development Kit (JDK) 17** - The application is built with Spring Boot 3.5.7 which requires Java 17
+</Info>
+
+- **Java 17** (Eclipse Temurin or OpenJDK recommended)
+- **Apache Maven 3.9+** for building the project
+- **Git** for cloning the repository
+- **PostgreSQL** or **H2** database (H2 is included for development)
+
+## Installation
+
+<Steps>
+  <Step title="Clone the repository">
+    Clone the HRS Riding School API repository to your local machine:
+
+    ```bash
+    git clone <repository-url>
+    cd hrs
+    ```
+  </Step>
+
+  <Step title="Configure environment variables">
+    Create a `.env` file in the project root directory. Use the provided `.env.example` as a template:
+
+    ```bash
+    cp .env.example .env
+    ```
+
+    Edit the `.env` file with your configuration:
+
+    ```bash
+    SPRING_PROFILE=local
+
+    # PostgreSQL Database (for dev/prod)
+    DB_HOST=your-database-host
+    DB_NAME=hrs
+    DB_USER=your-username
+    DB_PASSWORD=your-password
+
+    # Server Configuration
+    SERVER_PORT=8080
+
+    # Whitelist emails for registration (comma-separated)
+    WHITELIST_EMAILS=admin@example.com,user@example.com
+
+    # CORS - Frontend domain
+    CORS_ALLOWED_ORIGINS=http://localhost:5173
+    ```
+
+    <Note>
+      For local development, you can use the `local` profile which uses H2 in-memory database by default.
+    </Note>
+  </Step>
+
+  <Step title="Build the project">
+    Use Maven to download dependencies and build the project:
+
+    ```bash
+    mvn clean install
+    ```
+
+    This command will:
+    - Download all required dependencies
+    - Compile the source code
+    - Run unit tests
+    - Package the application into a JAR file
+
+    <Warning>
+      If you want to skip tests during build, use `mvn clean install -DskipTests`
+    </Warning>
+  </Step>
+
+  <Step title="Run the application">
+    Start the Spring Boot application using Maven:
+
+    ```bash
+    mvn spring-boot:run
+    ```
+
+    Or run the packaged JAR file:
+
+    ```bash
+    java -jar target/hrs-0.0.1-SNAPSHOT.jar
+    ```
+
+    The application will start on port 8080 (or the port specified in your `.env` file).
+  </Step>
+</Steps>
+
+## Verify Installation
+
+Once the application is running, you can verify it's working correctly:
+
+### Check Application Health
+
+The application exposes Spring Boot Actuator endpoints:
+
+```bash
+curl http://localhost:8080/actuator/health
+```
+
+Expected response:
+```json
+{
+  "status": "UP"
+}
+```
+
+### Access the API
+
+The API will be available at:
+
+```
+http://localhost:8080
+```
+
+<Info>
+  The base URL for all API endpoints is `http://localhost:8080/api` (verify the actual base path in your controllers)
+</Info>
+
+## Initial User Setup
+
+### Email Whitelist
+
+The application uses an email whitelist for user registration. Only users with whitelisted emails can register.
+
+<Steps>
+  <Step title="Configure whitelist">
+    Add allowed email addresses to the `WHITELIST_EMAILS` variable in your `.env` file:
+
+    ```bash
+    WHITELIST_EMAILS=admin@example.com,user1@example.com,user2@example.com
+    ```
+  </Step>
+
+  <Step title="Restart the application">
+    After updating the whitelist, restart the application for changes to take effect:
+
+    ```bash
+    # Stop the running application (Ctrl+C)
+    # Start it again
+    mvn spring-boot:run
+    ```
+  </Step>
+</Steps>
+
+## Development Tools
+
+### Hot Reload
+
+The project includes Spring Boot DevTools for automatic application restart during development:
+
+<CodeGroup>
+```xml pom.xml
+<dependency>
+  <groupId>org.springframework.boot</groupId>
+  <artifactId>spring-boot-devtools</artifactId>
+  <scope>runtime</scope>
+  <optional>true</optional>
+</dependency>
+```
+</CodeGroup>
+
+Changes to your code will automatically trigger a restart when using `mvn spring-boot:run`.
+
+### Lombok
+
+The project uses Lombok (version 1.18.30) to reduce boilerplate code. Make sure your IDE has the Lombok plugin installed:
+
+- **IntelliJ IDEA**: Install the "Lombok" plugin from the marketplace
+- **Eclipse**: Install Lombok from https://projectlombok.org/
+- **VS Code**: Install the "Lombok Annotations Support" extension
+
+## Troubleshooting
+
+<Warning>
+  **Port Already in Use**: If port 8080 is already occupied, change the `SERVER_PORT` in your `.env` file to another port (e.g., 8081, 9090)
+</Warning>
+
+### Common Issues
+
+| Issue | Solution |
+|-------|----------|
+| Java version mismatch | Ensure you're using Java 17. Check with `java -version` |
+| Database connection failed | Verify database credentials in `.env` file |
+| Email not whitelisted | Add your email to `WHITELIST_EMAILS` in `.env` |
+| Build failures | Try `mvn clean install -U` to force update dependencies |
+
+## Next Steps
+
+<Card title="Configuration" icon="gear" href="/guides/configuration">
+  Learn about configuring different profiles and environment variables
+</Card>
+
+<Card title="Deployment" icon="rocket" href="/guides/deployment">
+  Deploy the application to production using Docker
+</Card>

@@ -1,0 +1,391 @@
+---
+title: Trial Classes
+description: Understanding trial classes, prospect management, and conversion to regular enrollment in the HRS Riding School API
+---
+
+## Overview
+
+Trial classes allow prospective students to try riding lessons before committing to a paid enrollment plan. The system supports two types of trial scenarios:
+
+1. **New prospects** - People who have never been to the school
+2. **Existing students** - Enrolled students trying a new specialty
+
+## Trial Class Identification
+
+Classes are marked as trials using the `esPrueba` boolean field:
+
+```java
+@Column(name = "es_prueba", nullable = false)
+private Boolean esPrueba = false;
+```
+
+<Info>
+By default, `esPrueba` is `false`. Set it to `true` when creating a trial class.
+</Info>
+
+## PersonaPrueba Model
+
+New prospects who don't have a student account are represented by the `PersonaPrueba` entity:
+
+```java PersonaPrueba structure
+@Entity
+@Table(name = "personas_prueba")
+public class PersonaPrueba {
+    Long id                 // Unique identifier
+    String nombre           // First name (max 50 characters)
+    String apellido         // Last name (max 50 characters)
+    LocalDate fechaRegistro // Registration date (defaults to today)
+}
+```
+
+### Creating Trial Prospects
+
+Before scheduling a trial class for a new person, create a `PersonaPrueba` record:
+
+```json POST /api/v1/personas-prueba
+{
+  "nombre": "Carlos",
+  "apellido": "Mendez"
+}
+```
+
+Response:
+```json
+{
+  "id": 42,
+  "nombre": "Carlos",
+  "apellido": "Mendez",
+  "fechaRegistro": "2026-03-04"
+}
+```
+
+<Note>
+The `fechaRegistro` field automatically captures when the prospect first contacted the school.
+</Note>
+
+## Trial Class Scenarios
+
+The system supports three distinct trial class configurations:
+
+### Scenario 1: New Prospect (PersonaPrueba)
+
+A completely new person trying riding for the first time:
+
+```json POST /api/v1/clases
+{
+  "especialidad": "EQUITACION",
+  "dia": "2026-03-10",
+  "hora": "14:00",
+  "duracion": 60,
+  "estado": "PROGRAMADA",
+  "esPrueba": true,
+  "personaPruebaId": 42,  // Reference to PersonaPrueba
+  "alumnoId": null,       // No student account yet
+  "instructorId": 2,
+  "caballoId": 8
+}
+```
+
+<CardGroup cols={1}>
+  <Card title="Use Case" icon="user-plus">
+    Someone who called the school and wants to try a lesson before enrolling. They don't have an `Alumno` record yet.
+  </Card>
+</CardGroup>
+
+### Scenario 2: Existing Student Trying New Specialty
+
+An enrolled student who wants to try a specialty they haven't done before:
+
+```json POST /api/v1/clases
+{
+  "especialidad": "ADIESTRAMIENTO",  // New specialty for this student
+  "dia": "2026-03-10",
+  "hora": "15:00",
+  "duracion": 60,
+  "estado": "PROGRAMADA",
+  "esPrueba": true,
+  "personaPruebaId": null,
+  "alumnoId": 15,         // Existing student account
+  "instructorId": 2,
+  "caballoId": 8
+}
+```
+
+<CardGroup cols={1}>
+  <Card title="Use Case" icon="graduation-cap">
+    A student currently taking `EQUITACION` classes wants to try `ADIESTRAMIENTO` before committing to additional classes in that specialty.
+  </Card>
+</CardGroup>
+
+### Validation: One Trial Per Specialty
+
+Students cannot take multiple trial classes in the same specialty:
+
+```java Trial validation
+if (claseDto.isEsPrueba() && alumno != null) {
+    if (claseRepository.alumnoTieneClaseDePruebaEnEspecialidad(
+            alumno.getId(),
+            claseDto.getEspecialidad())) {
+        throw new BusinessException(
+            "El alumno ya ha tomado una clase de prueba de " + 
+            claseDto.getEspecialidad());
+    }
+}
+```
+
+<Warning>
+Each student can only have **one trial class per specialty**. Additional trials in the same specialty will be rejected.
+</Warning>
+
+## Trial Class Validation Rules
+
+When creating a trial class, the system enforces these business rules:
+
+### Rule 1: Must Specify Participant
+
+```java
+if (claseDto.isEsPrueba()) {
+    if (claseDto.getPersonaPruebaId() != null) {
+        // Scenario 1: New prospect
+        personaPrueba = personaPruebaRepository.findById(claseDto.getPersonaPruebaId())
+            .orElseThrow(...);
+    } else if (claseDto.getAlumnoId() != null) {
+        // Scenario 2: Existing student
+        alumno = obtenerAlumnoSinValidarEstado(claseDto.getAlumnoId());
+        validarClaseDePrueba(alumno, claseDto.getEspecialidad());
+    } else {
+        throw new BusinessException(
+            "Una clase de prueba requiere alumnoId o personaPruebaId");
+    }
+}
+```
+
+<Note>
+Trial classes must have either `personaPruebaId` OR `alumnoId`, but not both.
+</Note>
+
+### Rule 2: Student Cannot Already Have Classes in Specialty
+
+For existing students, the system verifies they haven't already taken regular classes in that specialty:
+
+```java
+private void validarClaseDePrueba(Alumno alumno, Especialidad especialidad) {
+    boolean tieneClasesDeEsaEspecialidad = claseRepository
+        .findByAlumnoId(alumno.getId())
+        .stream()
+        .anyMatch(c -> c.getEspecialidad() == especialidad
+                && (c.getEstado() == Estado.PROGRAMADA || c.getEstado() == Estado.COMPLETADA)
+                && !c.isEsPrueba());
+    
+    if (tieneClasesDeEsaEspecialidad) {
+        throw new BusinessException(
+            "El alumno ya tiene clases de " + especialidad +
+            ". Las clases de prueba son solo para especialidades nuevas");
+    }
+}
+```
+
+<Warning>
+Trial classes are **only for new specialties**. Students who already have regular classes in a specialty cannot take a trial in that same specialty.
+</Warning>
+
+### Rule 3: Cannot Change Class Type
+
+Once created, a class cannot be converted between regular and trial:
+
+```java
+if (dto.isEsPrueba() != null && !dto.isEsPrueba().equals(clase.isEsPrueba())) {
+    throw new BusinessException(
+        "No se puede cambiar el tipo de clase (regular ↔ prueba)");
+}
+```
+
+## Querying Trial Classes
+
+The API provides several methods to work with trial classes:
+
+### Check If Student Has Trial Class
+
+```java
+boolean alumnoTieneClaseDePrueba(Long alumnoId);
+```
+
+Returns `true` if the student has at least one trial class (in any specialty).
+
+### Count Trial Classes
+
+```java
+long contarClasesDePruebaPorAlumno(Long alumnoId);
+```
+
+Counts total trial classes for a student across all specialties.
+
+### Check Specific Specialty
+
+```java
+boolean alumnoTieneClaseDePruebaEnEspecialidad(Long alumnoId, String especialidad);
+```
+
+Checks if student has a trial class in a specific specialty.
+
+### List All Trial Classes
+
+```java
+List<ClaseResponseDto> listarTodasLasClasesDePrueba();
+```
+
+Returns all trial classes in the system with full details.
+
+### Get Student's Trial Classes
+
+```java
+List<ClaseResponseDto> listarClasesDePruebaPorAlumno(Long alumnoId);
+```
+
+<CodeGroup>
+
+```bash Get all trial classes
+curl -X GET "https://api.ridingschool.com/api/v1/clases/prueba"
+```
+
+```bash Get student's trial classes
+curl -X GET "https://api.ridingschool.com/api/v1/clases/alumno/{id}/prueba"
+```
+
+```bash Check if student has trial in specialty
+curl -X GET "https://api.ridingschool.com/api/v1/clases/alumno/{id}/prueba/EQUITACION"
+```
+
+</CodeGroup>
+
+## Conversion to Regular Student
+
+After completing a trial class, prospects can be converted to regular enrolled students.
+
+### For New Prospects (PersonaPrueba)
+
+<Steps>
+  <Step title="Create Student Account">
+    First, create an `Alumno` record using the prospect's information:
+    
+    ```json POST /api/v1/alumnos
+    {
+      "dni": "12345678",
+      "nombre": "Carlos",
+      "apellido": "Mendez",
+      "fechaNacimiento": "1990-05-15",
+      "telefono": "1234567890",
+      "email": "carlos@example.com",
+      "fechaInscripcion": "2026-03-04",
+      "cantidadClases": 8,
+      "activo": true,
+      "tipoPension": "SIN_CABALLO"
+    }
+    ```
+  </Step>
+  
+  <Step title="Student Begins Regular Classes">
+    The new student can now be assigned to regular classes with `esPrueba = false`.
+  </Step>
+</Steps>
+
+### For Existing Students (Trying New Specialty)
+
+Existing students don't need conversion - they can immediately book regular classes in the new specialty after their trial.
+
+<Note>
+The system doesn't automatically link trial classes to the new student account. The trial remains associated with `PersonaPrueba` as historical data.
+</Note>
+
+### Conversion API Endpoint
+
+For inactive students created as trial prospects:
+
+```bash POST /api/v1/alumnos/{id}/convertir
+Content-Type: application/json
+
+{
+  "cantidadClases": 8
+}
+```
+
+This endpoint:
+1. Verifies the student has completed at least one trial class
+2. Sets `activo = true`
+3. Sets `fechaInscripcion` to today
+4. Assigns the selected class package (4, 8, 12, or 16)
+
+<CodeGroup>
+
+```bash Convert to 8-class plan
+curl -X POST "https://api.ridingschool.com/api/v1/alumnos/15/convertir" \
+  -H "Content-Type: application/json" \
+  -d '{"cantidadClases": 8}'
+```
+
+```json Success Response
+{
+  "message": "Alumno convertido exitosamente a plan regular",
+  "alumnoId": 15,
+  "cantidadClases": 8,
+  "activo": true,
+  "fechaInscripcion": "2026-03-04"
+}
+```
+
+</CodeGroup>
+
+### Validation Rules for Conversion
+
+<AccordionGroup>
+  <Accordion title="Student Must Be Inactive">
+    Only inactive students (`activo = false`) can be converted. Active students don't need conversion.
+    
+    ```java
+    if (alumno.isActivo()) {
+        throw new BusinessException(
+            "El alumno ya está activo, no necesita conversión");
+    }
+    ```
+  </Accordion>
+  
+  <Accordion title="Must Have Completed Trial Class">
+    Student must have at least one completed or started trial class.
+    
+    ```java
+    long clasesDePrueba = alumnoRepository.contarClasesPorEstados(
+        alumnoId, List.of(Estado.COMPLETADA, Estado.INICIADA));
+    
+    if (clasesDePrueba == 0) {
+        throw new BusinessException(
+            "El alumno no ha completado ninguna clase de prueba");
+    }
+    ```
+  </Accordion>
+  
+  <Accordion title="Valid Class Package">
+    The `cantidadClases` parameter must be 4, 8, 12, or 16.
+    
+    ```java
+    if (!Arrays.asList(Constantes.CANTIDAD_CLASES).contains(cantidadClases)) {
+        throw new ValidationException(
+            "La cantidad de clases debe ser 4, 8, 12 o 16");
+    }
+    ```
+  </Accordion>
+</AccordionGroup>
+
+## Related Endpoints
+
+### PersonaPrueba Management
+- `POST /api/v1/personas-prueba` - Create trial prospect
+- `GET /api/v1/personas-prueba` - List all prospects
+- `GET /api/v1/personas-prueba/{id}` - Get prospect details
+
+### Trial Class Operations
+- `POST /api/v1/clases` - Create trial class (set `esPrueba: true`)
+- `GET /api/v1/clases/prueba` - List all trial classes
+- `GET /api/v1/clases/alumno/{id}/prueba` - Get student's trial classes
+
+### Conversion
+- `POST /api/v1/alumnos/{id}/convertir` - Convert inactive student to regular enrollment

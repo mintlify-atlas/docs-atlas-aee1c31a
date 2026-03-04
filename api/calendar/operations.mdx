@@ -1,0 +1,251 @@
+---
+title: Calendar Operations
+description: Bulk operations for copying and deleting classes across weeks and date ranges
+---
+
+The Calendar Operations API provides endpoints for managing class schedules at scale. These operations are designed for administrative tasks like duplicating weekly schedules or clearing date ranges.
+
+## Copy Classes to Week
+
+<Card title="POST /api/v1/calendario/copiar-clases" icon="copy">
+  Copy classes from one week to another for a specified number of weeks
+</Card>
+
+Duplicates all classes from a source week to one or more destination weeks. This is useful for replicating a standard weekly schedule across multiple future weeks.
+
+### Request
+
+<ParamField body="diaInicioOrigen" type="date" required>
+  Source week start date (typically a Monday) in ISO 8601 format (YYYY-MM-DD)
+  
+  **Example**: `"2025-01-06"` (Monday of source week)
+</ParamField>
+
+<ParamField body="diaInicioDestino" type="date" required>
+  Destination week start date (typically a Monday) in ISO 8601 format (YYYY-MM-DD)
+  
+  Must be different from `diaInicioOrigen`
+  
+  **Example**: `"2025-01-13"` (Monday of destination week)
+</ParamField>
+
+<ParamField body="cantidadSemanas" type="integer" required>
+  Number of consecutive weeks to copy
+  
+  Must be greater than 0
+  
+  **Example**: `4` (copy to 4 weeks starting from destination date)
+</ParamField>
+
+### Example Request
+
+```json
+{
+  "diaInicioOrigen": "2025-01-06",
+  "diaInicioDestino": "2025-01-13",
+  "cantidadSemanas": 4
+}
+```
+
+### Response
+
+<ResponseField name="mensaje" type="string">
+  Success confirmation message
+  
+  **Example**: `"Clases copiadas exitosamente a la semana del 2025-01-13"`
+</ResponseField>
+
+### Example Response
+
+<CodeGroup>
+```json 200 - Success
+{
+  "mensaje": "Clases copiadas exitosamente a la semana del 2025-01-13"
+}
+```
+
+```json 400 - Validation Error
+{
+  "mensaje": "La fecha de origen y destino no pueden ser iguales"
+}
+```
+</CodeGroup>
+
+### Use Cases
+
+- **Replicate Standard Schedule**: Copy a template week to multiple future weeks
+- **Seasonal Planning**: Duplicate a successful week's schedule for an entire season
+- **Quick Setup**: Set up a month's worth of classes based on one reference week
+
+---
+
+## Delete Classes by Range
+
+<Card title="DELETE /api/v1/calendario/eliminar-clases" icon="trash">
+  Delete classes across a date range or specific time window
+</Card>
+
+Removes classes from the schedule. Supports two modes:
+1. **Date range deletion**: Remove all classes between two dates
+2. **Time window deletion**: Remove classes on a specific date within certain hours
+
+### Request
+
+<ParamField body="diaInicioOrigen" type="date" required>
+  Start date of deletion range in ISO 8601 format (YYYY-MM-DD)
+  
+  For single-day time-based deletion, this is the target date
+  
+  **Example**: `"2025-01-06"`
+</ParamField>
+
+<ParamField body="diaInicioDestino" type="date" required>
+  End date of deletion range in ISO 8601 format (YYYY-MM-DD)
+  
+  Must be different from `diaInicioOrigen` for date range deletion
+  
+  For time-based deletion on a single day, set same as `diaInicioOrigen`
+  
+  **Example**: `"2025-01-12"`
+</ParamField>
+
+<ParamField body="horaInicio" type="time">
+  Optional start time in ISO 8601 format (HH:MM:SS)
+  
+  When specified with `horaFin`, limits deletion to classes within this time window
+  
+  **Example**: `"14:00:00"` (2:00 PM)
+</ParamField>
+
+<ParamField body="horaFin" type="time">
+  Optional end time in ISO 8601 format (HH:MM:SS)
+  
+  Must be after `horaInicio`. Only used when `horaInicio` is also specified
+  
+  **Example**: `"18:30:00"` (6:30 PM)
+</ParamField>
+
+### Example Requests
+
+**Delete by Date Range (Full Days)**
+
+```json
+{
+  "diaInicioOrigen": "2025-01-06",
+  "diaInicioDestino": "2025-01-12"
+}
+```
+
+**Delete by Time Window (Single Day)**
+
+```json
+{
+  "diaInicioOrigen": "2025-01-15",
+  "diaInicioDestino": "2025-01-15",
+  "horaInicio": "14:00:00",
+  "horaFin": "18:30:00"
+}
+```
+
+### Response
+
+<ResponseField name="mensaje" type="string">
+  Dynamic success message based on deletion type
+  
+  **Date range example**: `"Clases eliminadas exitosamente desde 2025-01-06 hasta 2025-01-12"`
+  
+  **Time window example**: `"Clases eliminadas exitosamente el 2025-01-15 de 14:00:00 a 18:30:00"`
+</ResponseField>
+
+### Example Responses
+
+<CodeGroup>
+```json 200 - Date Range Deletion
+{
+  "mensaje": "Clases eliminadas exitosamente desde 2025-01-06 hasta 2025-01-12"
+}
+```
+
+```json 200 - Time Window Deletion
+{
+  "mensaje": "Clases eliminadas exitosamente el 2025-01-15 de 14:00:00 a 18:30:00"
+}
+```
+
+```json 400 - Invalid Time Range
+{
+  "mensaje": "La hora de inicio debe ser anterior a la hora de fin"
+}
+```
+</CodeGroup>
+
+### Use Cases
+
+**Date Range Deletion**
+- Clear vacation/holiday periods
+- Remove classes during facility maintenance
+- Reset schedule for a specific week or month
+
+**Time Window Deletion**
+- Cancel afternoon classes on a specific day
+- Remove morning slots for a special event
+- Clear specific hours due to weather or facility issues
+
+---
+
+## Validation Rules
+
+All calendar operations enforce the following validations:
+
+<AccordionGroup>
+  <Accordion title="Date Validation">
+    - Source and destination dates cannot be identical
+    - Dates must be in ISO 8601 format (YYYY-MM-DD)
+    - All required date fields must be provided
+  </Accordion>
+  
+  <Accordion title="Time Validation">
+    - Start time must be before end time
+    - Times must be in ISO 8601 format (HH:MM:SS)
+    - Both `horaInicio` and `horaFin` must be specified together (or both omitted)
+  </Accordion>
+  
+  <Accordion title="Week Count Validation">
+    - Must be a positive integer (greater than 0)
+    - Only applies to copy operations
+  </Accordion>
+</AccordionGroup>
+
+## Error Responses
+
+Common validation errors:
+
+| Error Message | Cause |
+|--------------|-------|
+| `La fecha de inicio no puede estar vacía` | Missing `diaInicioOrigen` |
+| `La fecha de destino no puede estar vacía` | Missing `diaInicioDestino` |
+| `La fecha de origen y destino no pueden ser iguales` | Same dates provided when different dates required |
+| `La cantidad de semanas debe ser mayor a 0` | Invalid or missing `cantidadSemanas` |
+| `La hora de inicio debe ser anterior a la hora de fin` | End time before start time |
+
+## Related Endpoints
+
+After performing bulk calendar operations, you may want to:
+
+<CardGroup cols={2}>
+  <Card title="View Classes by Date" icon="calendar-day" href="/api/classes/list">
+    Verify copied or remaining classes on specific dates
+  </Card>
+  
+  <Card title="Search Classes" icon="magnifying-glass" href="/api/classes/delete">
+    Filter classes by date, time, instructor, or student
+  </Card>
+  
+  <Card title="View Instructor Schedule" icon="chalkboard-user" href="/api/classes/list">
+    Check instructor availability after bulk operations
+  </Card>
+  
+  <Card title="View Student Schedule" icon="user" href="/api/classes/list">
+    Review student class assignments
+  </Card>
+</CardGroup>

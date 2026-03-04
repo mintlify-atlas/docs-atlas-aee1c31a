@@ -1,0 +1,357 @@
+---
+title: 'Deployment Guide'
+description: 'Deploy the HRS Riding School API to production using Docker and Docker Compose'
+---
+
+## Docker Deployment
+
+The HRS Riding School API uses a multi-stage Docker build process for optimal performance and minimal image size.
+
+### Dockerfile Overview
+
+The application uses a two-stage build:
+
+<Steps>
+  <Step title="Stage 1: Build">
+    Uses `maven:3.9.6-eclipse-temurin-17` to compile the application:
+
+    - Downloads dependencies (with Docker layer caching)
+    - Compiles the source code
+    - Packages the application into a JAR file
+  </Step>
+
+  <Step title="Stage 2: Runtime">
+    Uses `eclipse-temurin:17-jre-alpine` for a minimal runtime image:
+
+    - Only includes the JRE (not the full JDK)
+    - Alpine Linux for minimal size
+    - Copies only the compiled JAR
+    - Exposes port 8080
+  </Step>
+</Steps>
+
+### Building the Docker Image
+
+<CodeGroup>
+```bash Build Image
+docker build -t hrs-api:latest .
+```
+
+```bash Build with Tag
+docker build -t hrs-api:v1.0.0 .
+```
+</CodeGroup>
+
+### Multi-Stage Build Process
+
+Here's the complete Dockerfile:
+
+```dockerfile Dockerfile
+# ==========================================
+# ETAPA 1: Compilar el proyecto
+# ==========================================
+FROM maven:3.9.6-eclipse-temurin-17 AS build
+
+WORKDIR /app
+
+# Copiamos primero el pom.xml para aprovechar caché de Docker
+COPY pom.xml .
+RUN mvn dependency:go-offline -B
+
+# Copiamos el código fuente y compilamos
+COPY src ./src
+RUN mvn clean package -DskipTests
+
+# ==========================================
+# ETAPA 2: Imagen final liviana
+# ==========================================
+FROM eclipse-temurin:17-jre-alpine
+
+WORKDIR /app
+
+# Carpeta para los uploads de usuarios
+RUN mkdir -p /app/uploads
+
+# Copiamos solo el JAR compilado de la etapa anterior
+COPY --from=build /app/target/*.jar app.jar
+
+# Puerto que expone la app
+EXPOSE 8080
+
+# Comando de arranque con perfil de producción
+ENTRYPOINT ["java", "-jar", "-Dspring.profiles.active=prod", "app.jar"]
+```
+
+<Info>
+  The Dockerfile creates an `/app/uploads` directory for file uploads. Make sure to mount a volume to persist uploaded files.
+</Info>
+
+## Running with Docker
+
+### Basic Docker Run
+
+```bash
+docker run -d \
+  --name hrs-api \
+  -p 8080:8080 \
+  -e DB_URL="jdbc:mysql://mysql:3306/hrs" \
+  -e DB_USERNAME="root" \
+  -e DB_PASSWORD="your-password" \
+  -e WHITELIST_EMAILS="admin@example.com" \
+  -e CORS_ALLOWED_ORIGINS="https://yourdomain.com" \
+  -v hrs-uploads:/app/uploads \
+  hrs-api:latest
+```
+
+### Environment Variables
+
+Required environment variables for production:
+
+| Variable | Description | Example |
+|----------|-------------|--------|
+| `DB_URL` | Database JDBC connection string | `jdbc:mysql://mysql:3306/hrs` |
+| `DB_USERNAME` | Database username | `root` |
+| `DB_PASSWORD` | Database password | `SecurePassword123` |
+| `WHITELIST_EMAILS` | Comma-separated list of allowed registration emails | `admin@example.com,user@example.com` |
+| `CORS_ALLOWED_ORIGINS` | Allowed CORS origins | `https://yourdomain.com` |
+| `SERVER_PORT` | Internal server port (default: 8080) | `8080` |
+
+## Docker Compose Deployment
+
+The recommended way to deploy is using Docker Compose, which includes the application and MySQL database.
+
+### Docker Compose Configuration
+
+<CodeGroup>
+```yaml docker-compose.yml
+services:
+
+  # Base de datos MySQL
+  mysql:
+    image: mysql:8.0
+    container_name: hrs_mysql
+    restart: always
+    environment:
+      MYSQL_DATABASE: hrs
+      MYSQL_ROOT_PASSWORD: ${DB_PASSWORD}
+    volumes:
+      - mysql_data:/var/lib/mysql
+    healthcheck:
+      test: ["CMD", "mysqladmin", "ping", "-h", "localhost", "-p${DB_PASSWORD}"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+
+  # Spring Boot Application
+  app:
+    build: .
+    container_name: hrs_app
+    restart: always
+    ports:
+      - "${SERVER_PORT:-8080}:8080"
+    environment:
+      SPRING_PROFILE: prod
+      DB_URL: jdbc:mysql://mysql:3306/hrs?useSSL=false&serverTimezone=America%2FArgentina%2FBuenos_Aires&rewriteBatchedStatements=true
+      DB_USERNAME: root
+      DB_PASSWORD: ${DB_PASSWORD}
+      WHITELIST_EMAILS: ${WHITELIST_EMAILS}
+      CORS_ALLOWED_ORIGINS: ${CORS_ALLOWED_ORIGINS}
+      SERVER_PORT: 8080
+    volumes:
+      - uploads_data:/app/uploads
+    depends_on:
+      mysql:
+        condition: service_healthy
+
+volumes:
+  mysql_data:
+  uploads_data:
+```
+</CodeGroup>
+
+### Setting Up Docker Compose
+
+<Steps>
+  <Step title="Create environment file">
+    Create a `.env` file in the same directory as `docker-compose.yml`:
+
+    ```bash
+    DB_PASSWORD=your-secure-password
+    SERVER_PORT=8080
+    WHITELIST_EMAILS=admin@example.com,user@example.com
+    CORS_ALLOWED_ORIGINS=https://yourdomain.com
+    ```
+
+    <Warning>
+      Never commit the `.env` file to version control. Keep your passwords secure!
+    </Warning>
+  </Step>
+
+  <Step title="Start the services">
+    Build and start all services:
+
+    ```bash
+    docker-compose up -d
+    ```
+
+    This will:
+    - Build the application image
+    - Start the MySQL database
+    - Wait for database health check
+    - Start the Spring Boot application
+  </Step>
+
+  <Step title="View logs">
+    Monitor application logs:
+
+    ```bash
+    # View all logs
+    docker-compose logs -f
+
+    # View only app logs
+    docker-compose logs -f app
+
+    # View only database logs
+    docker-compose logs -f mysql
+    ```
+  </Step>
+</Steps>
+
+### Health Checks
+
+The Docker Compose configuration includes:
+
+- **MySQL health check**: Ensures database is ready before starting the app
+- **Automatic restart**: Both services restart automatically if they crash
+- **Service dependencies**: App waits for healthy database before starting
+
+## Production Configuration
+
+### Port Exposure
+
+The application exposes port **8080** internally. You can map it to any external port:
+
+```yaml
+ports:
+  - "80:8080"      # Map to HTTP
+  - "8080:8080"    # Map to same port
+  - "${SERVER_PORT:-8080}:8080"  # Use environment variable
+```
+
+### Volume Persistence
+
+Two volumes are created for data persistence:
+
+| Volume | Purpose | Mount Point |
+|--------|---------|-------------|
+| `mysql_data` | Database files | `/var/lib/mysql` |
+| `uploads_data` | User uploaded files | `/app/uploads` |
+
+<Info>
+  Data in these volumes persists even when containers are stopped or removed. To completely reset, use `docker-compose down -v`
+</Info>
+
+### Database Configuration
+
+The MySQL connection string includes:
+
+```
+jdbc:mysql://mysql:3306/hrs?useSSL=false&serverTimezone=America%2FArgentina%2FBuenos_Aires&rewriteBatchedStatements=true
+```
+
+- `useSSL=false`: Disabled for internal Docker network
+- `serverTimezone`: Set to Buenos Aires timezone
+- `rewriteBatchedStatements=true`: Enables batch insert optimization
+
+## Production Profile
+
+When deployed via Docker, the application uses the `prod` profile:
+
+```bash
+-Dspring.profiles.active=prod
+```
+
+Production profile includes:
+
+- Database connection via environment variables
+- `hibernate.ddl-auto=update` (auto-schema updates)
+- SQL logging disabled (`show-sql=false`)
+- INFO level logging
+- Error details hidden from API responses
+- Health endpoint exposed (`/actuator/health`)
+- Batch insert optimization (50 records per batch)
+
+## Docker Commands
+
+<CodeGroup>
+```bash Start Services
+# Start in background
+docker-compose up -d
+
+# Start with build
+docker-compose up -d --build
+```
+
+```bash Stop Services
+# Stop services
+docker-compose stop
+
+# Stop and remove containers
+docker-compose down
+
+# Stop and remove volumes (⚠️ deletes data)
+docker-compose down -v
+```
+
+```bash View Status
+# List running containers
+docker-compose ps
+
+# View resource usage
+docker stats hrs_app hrs_mysql
+```
+
+```bash Rebuild
+# Rebuild only the app
+docker-compose build app
+
+# Rebuild and restart
+docker-compose up -d --build app
+```
+</CodeGroup>
+
+## Troubleshooting
+
+### Container Won't Start
+
+```bash
+# Check container logs
+docker-compose logs app
+
+# Check database logs
+docker-compose logs mysql
+```
+
+### Database Connection Issues
+
+<Warning>
+  Ensure the app container waits for MySQL to be fully ready. The health check should prevent this, but if issues persist, increase the health check interval.
+</Warning>
+
+### Port Conflicts
+
+If port 8080 is already in use:
+
+```bash
+# Change SERVER_PORT in .env
+SERVER_PORT=8081
+
+# Restart services
+docker-compose up -d
+```
+
+## Next Steps
+
+<Card title="Configuration" icon="gear" href="/guides/configuration">
+  Learn about environment variables and profile configuration
+</Card>

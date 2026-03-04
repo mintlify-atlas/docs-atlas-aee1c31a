@@ -1,0 +1,166 @@
+---
+title: "Class State Management"
+api: "PATCH /api/v1/clases/{id}/estado"
+---
+
+Manage the state (status) of riding classes through their lifecycle.
+
+## Change Class State
+
+<api method="PATCH" endpoint="/api/v1/clases/{id}/estado" />
+
+Updates only the state of a class without modifying other fields. This is the recommended way to transition classes through their lifecycle states.
+
+### Path Parameters
+
+<ParamField path="id" type="Long" required>
+The unique identifier of the class
+</ParamField>
+
+### Request Body
+
+Send a JSON object with the new state and optional observations.
+
+<ParamField body="estado" type="String" required>
+The new state for the class. Must be one of:
+- `PROGRAMADA` - Scheduled
+- `INICIADA` - Started
+- `COMPLETADA` - Completed
+- `CANCELADA` - Cancelled
+- `ACA` - Absent with notice (Ausente Con Aviso)
+- `ASA` - Absent without notice (Ausente Sin Aviso)
+
+Case-insensitive (converted to uppercase).
+</ParamField>
+
+<ParamField body="observaciones" type="String">
+Optional notes or reasons for the state change. Maximum 50 characters.
+
+Defaults to `null` if not provided.
+</ParamField>
+
+### Response
+
+Returns a `ClaseResponseDto` object with complete details of the updated class.
+
+<ResponseField name="id" type="Long">
+Class ID
+</ResponseField>
+
+<ResponseField name="estado" type="Estado">
+The updated state
+</ResponseField>
+
+<ResponseField name="observaciones" type="String">
+Updated observations
+</ResponseField>
+
+<ResponseField name="...">
+All other fields from ClaseResponseDto (instructor details, student details, horse details, etc.)
+</ResponseField>
+
+### Status Codes
+
+- `200 OK` - State successfully updated
+- `400 Bad Request` - Missing or invalid estado value
+- `404 Not Found` - Class with specified ID does not exist
+
+### Example Request
+
+```json
+{
+  "estado": "COMPLETADA",
+  "observaciones": "Excelente progreso"
+}
+```
+
+### Example Response
+
+```json
+{
+  "id": 42,
+  "especialidad": "EQUITACION",
+  "dia": "2026-03-15",
+  "hora": "10:00:00",
+  "duracion": 60,
+  "estado": "COMPLETADA",
+  "observaciones": "Excelente progreso",
+  "esPrueba": false,
+  "instructorId": 5,
+  "instructorNombre": "Carlos",
+  "instructorApellido": "Rodriguez",
+  "instructorNombreCompleto": "Carlos Rodriguez",
+  "alumnoId": 12,
+  "alumnoNombre": "Maria",
+  "alumnoApellido": "Gonzalez",
+  "alumnoNombreCompleto": "Maria Gonzalez",
+  "caballoId": 8,
+  "caballoNombre": "Thunder",
+  "caballoTipo": "PURA_SANGRE",
+  "diaHoraCompleto": "2026-03-15T10:00:00"
+}
+```
+
+## Estado Enum Values
+
+The `Estado` enum represents the lifecycle states of a class:
+
+### PROGRAMADA (Scheduled)
+The class has been scheduled but hasn't started yet. This is the typical initial state for new classes.
+
+### INICIADA (Started)
+The class is currently in progress. Indicates the instructor and student are actively engaged in the session.
+
+### COMPLETADA (Completed)
+The class has been successfully completed. This state may have restrictions on further editing.
+
+### CANCELADA (Cancelled)
+The class has been cancelled and will not take place. Use the `observaciones` field to record the reason.
+
+### ACA (Ausente Con Aviso)
+"Absent with Notice" - The student notified in advance that they would not attend the scheduled class.
+
+### ASA (Ausente Sin Aviso)
+"Absent without Notice" - The student did not show up for the class and did not provide advance notice.
+
+## State Transitions
+
+While this endpoint allows changing to any valid state, typical state workflows include:
+
+### Normal Flow
+```
+PROGRAMADA → INICIADA → COMPLETADA
+```
+
+### Cancellation Flow
+```
+PROGRAMADA → CANCELADA
+```
+
+### Absence Flows
+```
+PROGRAMADA → ACA (student notified in advance)
+PROGRAMADA → ASA (student didn't show up)
+```
+
+<Note>
+The service layer (`claseService.cambiarEstado()`) may enforce specific state transition rules and business logic. Refer to service documentation for detailed transition constraints.
+</Note>
+
+## Observaciones Field
+
+The `observaciones` field is particularly useful for:
+
+- Recording reasons for cancellation
+- Noting student performance or progress
+- Documenting absence explanations
+- Adding completion notes
+- Recording any incidents or special circumstances
+
+<Tip>
+Use this endpoint instead of `PUT /api/v1/clases/{id}` when you only need to update the state. It's more efficient and avoids the need to send all class fields.
+</Tip>
+
+<Warning>
+Changing state to `COMPLETADA` may trigger business rules that restrict further editing of the class. Some implementations prevent modifying completed classes to maintain audit trails.
+</Warning>

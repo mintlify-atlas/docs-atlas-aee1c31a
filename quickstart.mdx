@@ -1,80 +1,390 @@
 ---
-title: "Quickstart"
-description: "Start building awesome documentation in minutes"
+title: "Quickstart Guide"
+description: "Get the HRS Riding School API up and running in minutes. Learn how to install, configure, and make your first API requests."
 ---
 
-## Get started in three steps
+## Prerequisites
 
-Get your documentation site running locally and make your first customization.
+Before you begin, ensure you have the following installed:
 
-### Step 1: Set up your local environment
+- **Java 17** or higher
+- **Maven 3.6+** for dependency management
+- **PostgreSQL** or **H2 Database** (for development)
+- **Git** (to clone the repository)
 
-<AccordionGroup>
-  <Accordion icon="copy" title="Clone your docs locally">
-    During the onboarding process, you created a GitHub repository with your docs content if you didn't already have one. You can find a link to this repository in your [dashboard](https://dashboard.mintlify.com).
-    
-    To clone the repository locally so that you can make and preview changes to your docs, follow the [Cloning a repository](https://docs.github.com/en/repositories/creating-and-managing-repositories/cloning-a-repository) guide in the GitHub docs.
-  </Accordion>
-  <Accordion icon="rectangle-terminal" title="Start the preview server">
-    1. Install the Mintlify CLI: `npm i -g mint`
-    2. Navigate to your docs directory and run: `mint dev`
-    3. Open `http://localhost:3000` to see your docs live!
-    
-    <Tip>Your preview updates automatically as you edit files.</Tip>
-  </Accordion>
-</AccordionGroup>
+## Installation
 
-### Step 2: Deploy your changes
+<Steps>
+  <Step title="Clone the repository">
+    Clone the HRS project from your Git repository:
 
-<AccordionGroup>
-  <Accordion icon="github" title="Install our GitHub app">
-    Install the Mintlify GitHub app from your [dashboard](https://dashboard.mintlify.com/settings/organization/github-app).
-    
-    Our GitHub app automatically deploys your changes to your docs site, so you don't need to manage deployments yourself.
+    ```bash
+    git clone <your-repository-url>
+    cd hrs
+    ```
+  </Step>
+
+  <Step title="Install dependencies">
+    Use Maven to download and install all required dependencies:
+
+    ```bash
+    mvn clean install
+    ```
+
+    This will download Spring Boot 3.5.7, Spring Security, PostgreSQL drivers, and all other dependencies defined in `pom.xml`.
+  </Step>
+
+  <Step title="Configure the database">
+    The application supports multiple database configurations through Spring profiles.
+
+    ### Option 1: H2 Database (In-Memory - Development)
+
+    H2 is configured by default for quick testing. No additional setup required.
+
+    ### Option 2: PostgreSQL (Production)
+
+    Create a `.env` file in the project root with your database credentials:
+
+    ```properties
+    DB_HOST=your-database-host.com
+    DB_USER=your-database-user
+    DB_PASSWORD=your-database-password
+    SERVER_PORT=8080
+    WHITELIST_EMAILS=admin@example.com,user@example.com
+    SPRING_PROFILE=dev
+    ```
+
+    <Info>
+      The `application-dev.properties` file is configured to use PostgreSQL with the connection string:
+      ```
+      jdbc:postgresql://${DB_HOST}/neondb?sslmode=require
+      ```
+    </Info>
+
+    Update `application.properties` to use the `dev` profile:
+
+    ```properties
+    spring.profiles.active=dev
+    ```
+  </Step>
+
+  <Step title="Run the application">
+    Start the Spring Boot application:
+
+    ```bash
+    mvn spring-boot:run
+    ```
+
+    Or build and run the JAR:
+
+    ```bash
+    mvn package
+    java -jar target/hrs-0.0.1-SNAPSHOT.jar
+    ```
+
+    The API will start on `http://localhost:8080` (or the port specified in your `.env` file).
+  </Step>
+</Steps>
+
+## Database Configuration Options
+
+The application uses Spring profiles to manage different environments:
+
+<Accordion title="Development Profile (dev)">
+  Located in `src/main/resources/application-dev.properties`
+
+  ```properties
+  # PostgreSQL Configuration
+  spring.datasource.url=jdbc:postgresql://${DB_HOST}/neondb?sslmode=require
+  spring.datasource.username=${DB_USER}
+  spring.datasource.password=${DB_PASSWORD}
+  spring.datasource.driver-class-name=org.postgresql.Driver
+
+  # JPA/Hibernate Settings
+  spring.jpa.hibernate.ddl-auto=update
+  spring.jpa.show-sql=true
+  spring.jpa.properties.hibernate.format_sql=true
+  spring.jpa.properties.hibernate.dialect=org.hibernate.dialect.PostgreSQLDialect
+
+  # Server Configuration
+  server.port=${SERVER_PORT:8080}
+
+  # Email Whitelist for User Registration
+  app.whitelist.emails=${WHITELIST_EMAILS:claumarnavarro@gmail.com}
+
+  # Timezone Configuration (Argentina)
+  spring.jpa.properties.hibernate.jdbc.time_zone=America/Argentina/Buenos_Aires
+  spring.jackson.time-zone=America/Argentina/Buenos_Aires
+  ```
 </Accordion>
-<Accordion icon="palette" title="Update your site name and colors">
-    For a first change, let's update the name and colors of your docs site.
 
-    1. Open `docs.json` in your editor.
-    2. Change the `"name"` field to your project name.
-    3. Update the `"colors"` to match your brand.
-    4. Save and see your changes instantly at `http://localhost:3000`.
+<Accordion title="Production Profile (prod)">
+  Located in `src/main/resources/application-prod.properties`
 
-    <Tip>Try changing the primary color to see an immediate difference!</Tip>
-  </Accordion>
-</AccordionGroup>
-
-### Step 3: Go live
-
-<Accordion icon="rocket" title="Publish your docs">
-  1. Commit and push your changes.
-  2. Your docs will update and be live in moments!
+  Configure this file with your production database settings following the same pattern as the dev profile.
 </Accordion>
 
-## Next steps
+<Warning>
+  Never commit your `.env` file or production credentials to version control. Add them to `.gitignore`.
+</Warning>
 
-Now that you have your docs running, explore these key features:
+## Making Your First API Request
 
-<CardGroup cols={2}>
+The HRS API uses **HTTP Basic Authentication**. You'll need to register a user first, then authenticate with every request.
 
-<Card title="Write Content" icon="pen-to-square" href="/essentials/markdown">
-  Learn MDX syntax and start writing your documentation.
-</Card>
+### Step 1: Register a User
 
-<Card title="Customize style" icon="palette" href="/essentials/settings">
-  Make your docs match your brand perfectly.
-</Card>
+Only emails in the whitelist can register. First, add your email to the `WHITELIST_EMAILS` environment variable.
 
-<Card title="Add code examples" icon="square-code" href="/essentials/code">
-  Include syntax-highlighted code blocks.
-</Card>
-
-<Card title="API documentation" icon="code" href="/api-reference/introduction">
-  Auto-generate API docs from OpenAPI specs.
-</Card>
-
-</CardGroup>
+```bash
+curl -X POST http://localhost:8080/api/v1/auth/register \
+  -H "Content-Type: application/json" \
+  -d '{
+    "username": "admin",
+    "email": "admin@example.com",
+    "password": "SecurePassword123!",
+    "rol": "ADMIN"
+  }'
+```
 
 <Note>
-  **Need help?** See our [full documentation](https://mintlify.com/docs) or join our [community](https://mintlify.com/community).
+  Available roles are: `ADMIN`, `INSTRUCTOR`, and `ALUMNO`
 </Note>
+
+**Response:**
+```json
+{
+  "mensaje": "Usuario registrado correctamente: admin"
+}
+```
+
+### Step 2: Authenticate and Login
+
+Use Basic Authentication to login and verify your credentials:
+
+```bash
+curl -X POST http://localhost:8080/api/v1/auth/login \
+  -u admin:SecurePassword123!
+```
+
+**Response:**
+```json
+{
+  "id": 1,
+  "username": "admin",
+  "email": "admin@example.com",
+  "rol": "ADMIN",
+  "personaDni": null,
+  "personaTipo": null,
+  "avatarUrl": null
+}
+```
+
+### Step 3: Create Your First Student
+
+Now that you're authenticated, create a student (alumno):
+
+```bash
+curl -X POST http://localhost:8080/api/v1/alumnos \
+  -u admin:SecurePassword123! \
+  -H "Content-Type: application/json" \
+  -d '{
+    "dni": "12345678",
+    "nombre": "Juan",
+    "apellido": "Pérez",
+    "fechaNacimiento": "1995-05-15",
+    "telefono": "1234567890",
+    "email": "juan.perez@example.com",
+    "fechaInscripcion": "2024-01-15",
+    "cantidadClases": 8,
+    "activo": true,
+    "propietario": false,
+    "tipoPension": "SIN_CABALLO"
+  }'
+```
+
+<Tip>
+  Valid values for `cantidadClases` are: 4, 8, 12, or 16 classes per month.
+</Tip>
+
+**Response:**
+```json
+{
+  "mensaje": "Alumno Juan Pérez creado correctamente"
+}
+```
+
+### Step 4: Create an Instructor
+
+Create an instructor to teach classes:
+
+```bash
+curl -X POST http://localhost:8080/api/v1/instructores \
+  -u admin:SecurePassword123! \
+  -H "Content-Type: application/json" \
+  -d '{
+    "dni": "87654321",
+    "nombre": "María",
+    "apellido": "González",
+    "fechaNacimiento": "1985-08-20",
+    "telefono": "9876543210",
+    "email": "maria.gonzalez@example.com",
+    "activo": true,
+    "color": "#3B82F6"
+  }'
+```
+
+**Response:**
+```json
+{
+  "mensaje": "Instructor María González creado correctamente"
+}
+```
+
+### Step 5: Create a Horse
+
+Create a horse for classes:
+
+```bash
+curl -X POST http://localhost:8080/api/v1/caballos \
+  -u admin:SecurePassword123! \
+  -H "Content-Type: application/json" \
+  -d '{
+    "nombre": "Thunder",
+    "disponible": true,
+    "tipo": "ESCUELA"
+  }'
+```
+
+<Note>
+  Horse types (`tipo`) can be:
+  - `ESCUELA`: School-owned horse, available for all students
+  - `PRIVADO`: Private horse, owned by a specific student
+</Note>
+
+**Response:**
+```json
+{
+  "mensaje": "Caballo Thunder creado correctamente"
+}
+```
+
+### Step 6: Retrieve Data
+
+Fetch the list of students:
+
+```bash
+curl -X GET http://localhost:8080/api/v1/alumnos \
+  -u admin:SecurePassword123!
+```
+
+**Response:**
+```json
+[
+  {
+    "id": 1,
+    "dni": "12345678",
+    "nombreCompleto": "Juan Pérez",
+    "fechaNacimiento": "1995-05-15",
+    "telefono": "+5491234567890",
+    "email": "juan.perez@example.com",
+    "fechaInscripcion": "2024-01-15",
+    "cantidadClases": 8,
+    "activo": true,
+    "propietario": false,
+    "caballoNombre": null,
+    "tipoPension": "SIN_CABALLO",
+    "cuotaPension": null
+  }
+]
+```
+
+## Common API Endpoints
+
+<CardGroup cols={2}>
+  <Card title="Authentication" icon="lock">
+    - `POST /api/v1/auth/register` - Register new user
+    - `POST /api/v1/auth/login` - Login
+    - `GET /api/v1/auth/validate` - Validate credentials
+    - `POST /api/v1/auth/logout` - Logout
+  </Card>
+
+  <Card title="Students (Alumnos)" icon="user">
+    - `GET /api/v1/alumnos` - List all students
+    - `POST /api/v1/alumnos` - Create student
+    - `GET /api/v1/alumnos/{id}` - Get student by ID
+    - `PUT /api/v1/alumnos/{id}` - Update student
+    - `DELETE /api/v1/alumnos/{id}` - Delete student
+  </Card>
+
+  <Card title="Instructors" icon="chalkboard-user">
+    - `GET /api/v1/instructores` - List instructors
+    - `POST /api/v1/instructores` - Create instructor
+    - `GET /api/v1/instructores/{id}` - Get instructor by ID
+    - `PUT /api/v1/instructores/{id}` - Update instructor
+    - `DELETE /api/v1/instructores/{id}` - Delete instructor
+  </Card>
+
+  <Card title="Horses (Caballos)" icon="horse">
+    - `GET /api/v1/caballos` - List horses
+    - `POST /api/v1/caballos` - Create horse
+    - `GET /api/v1/caballos/{id}` - Get horse by ID
+    - `PUT /api/v1/caballos/{id}` - Update horse
+    - `DELETE /api/v1/caballos/{id}` - Delete horse
+  </Card>
+</CardGroup>
+
+## Next Steps
+
+Now that you have the API running, explore these topics:
+
+<CardGroup cols={2}>
+  <Card title="Authentication" icon="shield" href="/authentication">
+    Learn about user registration, roles, and security
+  </Card>
+  
+  <Card title="API Reference" icon="book">
+    Explore all available endpoints and their parameters
+  </Card>
+  
+  <Card title="Classes Management" icon="calendar">
+    Learn how to create and manage riding classes
+  </Card>
+  
+  <Card title="Error Handling" icon="triangle-exclamation">
+    Understand error responses and validation messages
+  </Card>
+</CardGroup>
+
+## Troubleshooting
+
+<Accordion title="Port already in use">
+  If port 8080 is already in use, change it in your `.env` file:
+  ```properties
+  SERVER_PORT=8081
+  ```
+</Accordion>
+
+<Accordion title="Database connection errors">
+  Verify your database credentials in the `.env` file and ensure PostgreSQL is running:
+  ```bash
+  # Test PostgreSQL connection
+  psql -h your-database-host.com -U your-database-user -d neondb
+  ```
+</Accordion>
+
+<Accordion title="Email not whitelisted error">
+  Add your email to the `WHITELIST_EMAILS` environment variable:
+  ```properties
+  WHITELIST_EMAILS=admin@example.com,user1@example.com,user2@example.com
+  ```
+  Restart the application after making changes.
+</Accordion>
+
+<Accordion title="Maven build fails">
+  Ensure you're using Java 17 or higher:
+  ```bash
+  java -version
+  # Should show: openjdk version "17.x.x" or higher
+  ```
+</Accordion>
