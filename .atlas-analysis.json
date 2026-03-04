@@ -1,0 +1,136 @@
+{
+  "projectType": "api-service",
+  "projectName": "HRS Riding School API",
+  "projectDescription": "REST API for managing a riding school with students, instructors, horses, and class scheduling",
+  "theme": "palm",
+  "primaryColor": "#8B4513",
+  "lightColor": "#D2691E",
+  "darkColor": "#654321",
+  "navigation": {
+    "tabs": [
+      {
+        "tab": "Documentation",
+        "groups": [
+          {
+            "group": "Getting Started",
+            "pages": [
+              "introduction",
+              "quickstart",
+              "authentication"
+            ]
+          },
+          {
+            "group": "Core Concepts",
+            "pages": [
+              "concepts/students",
+              "concepts/instructors",
+              "concepts/horses",
+              "concepts/classes",
+              "concepts/trial-classes"
+            ]
+          },
+          {
+            "group": "Guides",
+            "pages": [
+              "guides/setup",
+              "guides/deployment",
+              "guides/configuration"
+            ]
+          }
+        ]
+      },
+      {
+        "tab": "API Reference",
+        "groups": [
+          {
+            "group": "Authentication",
+            "pages": [
+              "api/auth/login",
+              "api/auth/register",
+              "api/auth/users"
+            ]
+          },
+          {
+            "group": "Students",
+            "pages": [
+              "api/students/list",
+              "api/students/create",
+              "api/students/update",
+              "api/students/delete",
+              "api/students/search"
+            ]
+          },
+          {
+            "group": "Instructors",
+            "pages": [
+              "api/instructors/list",
+              "api/instructors/create",
+              "api/instructors/update",
+              "api/instructors/delete"
+            ]
+          },
+          {
+            "group": "Horses",
+            "pages": [
+              "api/horses/list",
+              "api/horses/create",
+              "api/horses/update",
+              "api/horses/delete"
+            ]
+          },
+          {
+            "group": "Classes",
+            "pages": [
+              "api/classes/list",
+              "api/classes/create",
+              "api/classes/update",
+              "api/classes/delete",
+              "api/classes/state-management",
+              "api/classes/trial-classes"
+            ]
+          },
+          {
+            "group": "Calendar",
+            "pages": [
+              "api/calendar/overview",
+              "api/calendar/operations"
+            ]
+          }
+        ]
+      }
+    ]
+  },
+  "keyFeatures": [
+    "Student management with enrollment plans",
+    "Instructor and horse resource management",
+    "Class scheduling and calendar operations",
+    "Trial class system for prospects",
+    "Multi-state class lifecycle (PROGRAMADA, INICIADA, COMPLETADA, CANCELADA, ACA, ASA)",
+    "Horse boarding management (pension types)",
+    "Authentication and user management with role-based access",
+    "Comprehensive search and filtering"
+  ],
+  "publicApiSurface": [
+    "POST /api/v1/auth/login",
+    "POST /api/v1/auth/register",
+    "GET /api/v1/alumnos",
+    "POST /api/v1/alumnos",
+    "PUT /api/v1/alumnos/{id}",
+    "DELETE /api/v1/alumnos/{id}",
+    "GET /api/v1/instructores",
+    "POST /api/v1/instructores",
+    "PUT /api/v1/instructores/{id}",
+    "DELETE /api/v1/instructores/{id}",
+    "GET /api/v1/caballos",
+    "POST /api/v1/caballos",
+    "PUT /api/v1/caballos/{id}",
+    "DELETE /api/v1/caballos/{id}",
+    "GET /api/v1/clases",
+    "POST /api/v1/clases",
+    "PUT /api/v1/clases/{id}",
+    "DELETE /api/v1/clases/{id}",
+    "PATCH /api/v1/clases/{id}/estado",
+    "POST /api/v1/clases/prueba",
+    "GET /api/v1/calendario"
+  ]
+}
